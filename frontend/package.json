@@ -22,7 +22,7 @@
     "react-hot-toast": "^2.4.1",
     "react-redux": "^9.0.4",
     "react-router-dom": "^6.21.1",
-    "recharts": "^2.10.3"
+    "recharts": "^3.7.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.48",
