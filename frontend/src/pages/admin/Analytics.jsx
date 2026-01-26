@@ -62,8 +62,9 @@ const AdminAnalytics = () => {
     try {
       // Fetch KPIs
       const kpisResponse = await api.get('/analytics/kpis');
-      if (kpisResponse.data) {
-        setKpis(kpisResponse.data);
+      const kpisData = kpisResponse.data.data || (typeof kpisResponse.data === 'object' && !Array.isArray(kpisResponse.data) ? kpisResponse.data : null);
+      if (kpisData && !Array.isArray(kpisData)) {
+        setKpis(kpisData);
       } else {
         setKpis({
           avgOrderValue: 367.25,
@@ -75,23 +76,28 @@ const AdminAnalytics = () => {
 
       // Fetch revenue trend
       const revenueResponse = await api.get('/analytics/revenue-trend');
-      setRevenueData(revenueResponse.data || generateMockRevenueData());
+      const revenueData = Array.isArray(revenueResponse.data) ? revenueResponse.data : (revenueResponse.data.data || []);
+      setRevenueData(revenueData.length > 0 ? revenueData : generateMockRevenueData());
 
       // Fetch customer analytics
       const customerResponse = await api.get('/analytics/customer-behavior');
-      setCustomerData(customerResponse.data || generateMockCustomerData());
+      const customerData = Array.isArray(customerResponse.data) ? customerResponse.data : (customerResponse.data.data || []);
+      setCustomerData(customerData.length > 0 ? customerData : generateMockCustomerData());
 
       // Fetch inventory health
       const inventoryResponse = await api.get('/analytics/inventory-health');
-      setInventoryHealth(inventoryResponse.data || generateMockInventoryHealth());
+      const inventoryData = Array.isArray(inventoryResponse.data) ? inventoryResponse.data : (inventoryResponse.data.data || []);
+      setInventoryHealth(inventoryData.length > 0 ? inventoryData : generateMockInventoryHealth());
 
       // Fetch performance metrics
       const performanceResponse = await api.get('/analytics/performance');
-      setPerformanceMetrics(performanceResponse.data || generateMockPerformanceMetrics());
+      const performanceData = Array.isArray(performanceResponse.data) ? performanceResponse.data : (performanceResponse.data.data || []);
+      setPerformanceMetrics(performanceData.length > 0 ? performanceData : generateMockPerformanceMetrics());
 
       // Fetch low stock alerts
       const lowStockResponse = await api.get('/analytics/low-stock');
-      setLowStockProducts(lowStockResponse.data || generateMockLowStock());
+      const lowStockData = Array.isArray(lowStockResponse.data) ? lowStockResponse.data : (lowStockResponse.data.data || []);
+      setLowStockProducts(lowStockData.length > 0 ? lowStockData : generateMockLowStock());
 
       message.success('Analytics data loaded successfully');
     } catch (error) {
@@ -179,7 +185,7 @@ const AdminAnalytics = () => {
       key: 'status',
       render: (status) => (
         <Tag color={status === 'critical' ? 'red' : 'orange'}>
-          {status.toUpperCase()}
+          {status?.toUpperCase() || 'N/A'}
         </Tag>
       ),
     },

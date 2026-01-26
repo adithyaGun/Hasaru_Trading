@@ -54,8 +54,10 @@ const AdminSuppliers = () => {
     setLoading(true);
     try {
       const response = await api.get('/suppliers');
-      setSuppliers(response.data);
-      calculateStats(response.data);
+      // Backend returns { success, message, data: { suppliers, pagination } }
+      const suppliersData = response.data?.data?.suppliers || [];
+      setSuppliers(suppliersData);
+      calculateStats(suppliersData);
       message.success('Suppliers loaded successfully');
     } catch (error) {
       message.error('Failed to load suppliers');
@@ -66,6 +68,10 @@ const AdminSuppliers = () => {
   };
 
   const calculateStats = (suppliersData) => {
+    if (!Array.isArray(suppliersData)) {
+      setStats({ total: 0, active: 0, inactive: 0 });
+      return;
+    }
     const total = suppliersData.length;
     const active = suppliersData.filter(s => s.status === 'active').length;
     const inactive = suppliersData.filter(s => s.status === 'inactive').length;
@@ -118,7 +124,7 @@ const AdminSuppliers = () => {
     }
   };
 
-  const filteredSuppliers = suppliers.filter(supplier => {
+  const filteredSuppliers = (Array.isArray(suppliers) ? suppliers : []).filter(supplier => {
     const matchesSearch = supplier.name.toLowerCase().includes(searchText.toLowerCase()) ||
                          supplier.email?.toLowerCase().includes(searchText.toLowerCase()) ||
                          supplier.phone?.toLowerCase().includes(searchText.toLowerCase());
@@ -158,7 +164,7 @@ const AdminSuppliers = () => {
       width: 100,
       render: (status) => (
         <Tag color={status === 'active' ? 'green' : 'red'}>
-          {status.toUpperCase()}
+          {status?.toUpperCase() || 'N/A'}
         </Tag>
       ),
     },
@@ -459,7 +465,7 @@ const AdminSuppliers = () => {
             </Descriptions.Item>
             <Descriptions.Item label="Status">
               <Tag color={viewingSupplier.status === 'active' ? 'green' : 'red'}>
-                {viewingSupplier.status.toUpperCase()}
+                {viewingSupplier.status?.toUpperCase() || 'N/A'}
               </Tag>
             </Descriptions.Item>
             <Descriptions.Item label="Email">

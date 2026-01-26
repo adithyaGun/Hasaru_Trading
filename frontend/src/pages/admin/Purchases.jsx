@@ -64,8 +64,10 @@ const AdminPurchases = () => {
     setLoading(true);
     try {
       const response = await api.get('/purchases');
-      setPurchases(response.data);
-      calculateStats(response.data);
+      // Backend returns { success, message, data: { purchases, pagination } }
+      const purchasesData = response.data?.data?.purchases || [];
+      setPurchases(purchasesData);
+      calculateStats(purchasesData);
       message.success('Purchase orders loaded successfully');
     } catch (error) {
       message.error('Failed to load purchase orders');
@@ -78,7 +80,9 @@ const AdminPurchases = () => {
   const fetchSuppliers = async () => {
     try {
       const response = await api.get('/suppliers');
-      setSuppliers(response.data.filter(s => s.status === 'active'));
+      // Backend returns { success, message, data: { suppliers, pagination } }
+      const suppliersData = response.data?.data?.suppliers || [];
+      setSuppliers(suppliersData.filter(s => s.status === 'active'));
     } catch (error) {
       console.error('Error fetching suppliers:', error);
     }
@@ -87,13 +91,19 @@ const AdminPurchases = () => {
   const fetchProducts = async () => {
     try {
       const response = await api.get('/products');
-      setProducts(response.data.filter(p => p.status === 'active'));
+      // Backend returns { success, message, data: { products, pagination } }
+      const productsData = response.data?.data?.products || [];
+      setProducts(productsData.filter(p => p.status === 'active'));
     } catch (error) {
       console.error('Error fetching products:', error);
     }
   };
 
   const calculateStats = (purchasesData) => {
+    if (!Array.isArray(purchasesData)) {
+      setStats({ total: 0, pending: 0, completed: 0, cancelled: 0 });
+      return;
+    }
     const total = purchasesData.length;
     const pending = purchasesData.filter(p => p.status === 'pending').length;
     const completed = purchasesData.filter(p => p.status === 'completed').length;
@@ -239,7 +249,7 @@ const AdminPurchases = () => {
     }
   };
 
-  const filteredPurchases = purchases.filter(purchase => {
+  const filteredPurchases = (Array.isArray(purchases) ? purchases : []).filter(purchase => {
     const matchesSearch = purchase.supplier_name?.toLowerCase().includes(searchText.toLowerCase());
     const matchesStatus = filterStatus === 'all' || purchase.status === filterStatus;
     return matchesSearch && matchesStatus;
@@ -287,7 +297,7 @@ const AdminPurchases = () => {
       width: 110,
       render: (status) => (
         <Tag color={getStatusColor(status)}>
-          {status.toUpperCase()}
+          {status?.toUpperCase() || 'N/A'}
         </Tag>
       ),
     },
@@ -625,7 +635,7 @@ const AdminPurchases = () => {
               </Descriptions.Item>
               <Descriptions.Item label="Status">
                 <Tag color={getStatusColor(viewingPurchase.status)}>
-                  {viewingPurchase.status.toUpperCase()}
+                  {viewingPurchase.status?.toUpperCase() || 'N/A'}
                 </Tag>
               </Descriptions.Item>
               <Descriptions.Item label="Order Date">

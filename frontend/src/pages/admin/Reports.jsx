@@ -71,12 +71,13 @@ const AdminReports = () => {
         }
       });
       
-      if (statsResponse.data) {
+      const statsData = statsResponse.data.data || (typeof statsResponse.data === 'object' && !Array.isArray(statsResponse.data) ? statsResponse.data : null);
+      if (statsData && !Array.isArray(statsData)) {
         setStats({
-          totalRevenue: statsResponse.data.total_revenue || 0,
-          totalOrders: statsResponse.data.total_orders || 0,
-          totalCustomers: statsResponse.data.total_customers || 0,
-          growthRate: statsResponse.data.growth_rate || 0
+          totalRevenue: statsData.total_revenue || 0,
+          totalOrders: statsData.total_orders || 0,
+          totalCustomers: statsData.total_customers || 0,
+          growthRate: statsData.growth_rate || 0
         });
       }
 
@@ -87,7 +88,8 @@ const AdminReports = () => {
           end_date: dateRange?.[1]?.format('YYYY-MM-DD')
         }
       });
-      setSalesData(salesResponse.data || generateMockSalesData());
+      const salesData = Array.isArray(salesResponse.data) ? salesResponse.data : (salesResponse.data.data || []);
+      setSalesData(salesData.length > 0 ? salesData : generateMockSalesData());
 
       // Fetch top products
       const productsResponse = await api.get('/reports/top-products', {
@@ -95,11 +97,13 @@ const AdminReports = () => {
           limit: 10
         }
       });
-      setTopProducts(productsResponse.data || generateMockTopProducts());
+      const productsData = Array.isArray(productsResponse.data) ? productsResponse.data : (productsResponse.data.data || []);
+      setTopProducts(productsData.length > 0 ? productsData : generateMockTopProducts());
 
       // Fetch category breakdown
       const categoryResponse = await api.get('/reports/category-breakdown');
-      setCategoryData(categoryResponse.data || generateMockCategoryData());
+      const categoryData = Array.isArray(categoryResponse.data) ? categoryResponse.data : (categoryResponse.data.data || []);
+      setCategoryData(categoryData.length > 0 ? categoryData : generateMockCategoryData());
 
       message.success('Report data loaded successfully');
     } catch (error) {

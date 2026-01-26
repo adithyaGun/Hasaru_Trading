@@ -51,9 +51,11 @@ const OnlineOrders = () => {
   const fetchOrders = async () => {
     setLoading(true);
     try {
-      const response = await api.get('/sales/online');
-      setOrders(response.data);
-      calculateStats(response.data);
+      const response = await api.get('/sales/online/orders');
+      // Backend returns { success, message, data: { orders, pagination } }
+      const ordersData = response.data?.data?.orders || [];
+      setOrders(ordersData);
+      calculateStats(ordersData);
       message.success('Orders loaded successfully');
     } catch (error) {
       message.error('Failed to load orders');
@@ -102,6 +104,10 @@ const OnlineOrders = () => {
   };
 
   const calculateStats = (ordersData) => {
+    if (!Array.isArray(ordersData)) {
+      setStats({ total: 0, pending: 0, processing: 0, completed: 0, cancelled: 0 });
+      return;
+    }
     const total = ordersData.length;
     const pending = ordersData.filter(o => o.status === 'pending').length;
     const processing = ordersData.filter(o => o.status === 'processing').length;
@@ -146,7 +152,7 @@ const OnlineOrders = () => {
     }
   };
 
-  const filteredOrders = orders.filter(order => {
+  const filteredOrders = (Array.isArray(orders) ? orders : []).filter(order => {
     const matchesSearch = 
       order.order_number?.toLowerCase().includes(searchText.toLowerCase()) ||
       order.customer_name?.toLowerCase().includes(searchText.toLowerCase());
@@ -188,7 +194,7 @@ const OnlineOrders = () => {
       width: 100,
       render: (status) => (
         <Tag color={getPaymentStatusColor(status)}>
-          {status?.toUpperCase()}
+          {status?.toUpperCase() || 'N/A'}
         </Tag>
       ),
     },
@@ -199,7 +205,7 @@ const OnlineOrders = () => {
       width: 110,
       render: (status) => (
         <Tag color={getStatusColor(status)}>
-          {status?.toUpperCase()}
+          {status?.toUpperCase() || 'N/A'}
         </Tag>
       ),
     },
@@ -401,7 +407,7 @@ const OnlineOrders = () => {
               </Descriptions.Item>
               <Descriptions.Item label="Order Status">
                 <Tag color={getStatusColor(viewingOrder.status)}>
-                  {viewingOrder.status?.toUpperCase()}
+                  {viewingOrder.status?.toUpperCase() || 'N/A'}
                 </Tag>
               </Descriptions.Item>
               <Descriptions.Item label="Email">
@@ -412,7 +418,7 @@ const OnlineOrders = () => {
               </Descriptions.Item>
               <Descriptions.Item label="Payment Status">
                 <Tag color={getPaymentStatusColor(viewingOrder.payment_status)}>
-                  {viewingOrder.payment_status?.toUpperCase()}
+                  {viewingOrder.payment_status?.toUpperCase() || 'N/A'}
                 </Tag>
               </Descriptions.Item>
               <Descriptions.Item label="Payment Method">

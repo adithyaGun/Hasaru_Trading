@@ -42,8 +42,10 @@ const MyOrders = () => {
   const fetchOrders = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/orders/my-orders');
-      setOrders(response.data || []);
+      const response = await api.get('/sales/online/my-orders');
+      // Backend returns { success, message, data: { orders, pagination } }
+      const ordersData = response.data?.data?.orders || [];
+      setOrders(ordersData);
     } catch (error) {
       console.error('Failed to fetch orders:', error);
       message.error('Failed to load orders');
@@ -146,7 +148,7 @@ const MyOrders = () => {
       key: 'status',
       render: (status) => (
         <Tag color={getStatusColor(status)} icon={getStatusIcon(status)}>
-          {status.toUpperCase()}
+          {status?.toUpperCase() || 'N/A'}
         </Tag>
       ),
     },
@@ -314,7 +316,7 @@ const MyOrders = () => {
               </Descriptions.Item>
               <Descriptions.Item label="Status">
                 <Tag color={getStatusColor(viewingOrder.status)} icon={getStatusIcon(viewingOrder.status)}>
-                  {viewingOrder.status.toUpperCase()}
+                  {viewingOrder.status?.toUpperCase() || 'N/A'}
                 </Tag>
               </Descriptions.Item>
               <Descriptions.Item label="Payment Status">

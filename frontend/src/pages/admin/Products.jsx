@@ -55,8 +55,10 @@ const AdminProducts = () => {
     setLoading(true);
     try {
       const response = await api.get('/products');
-      setProducts(response.data);
-      calculateStats(response.data);
+      // Backend returns { success, message, data: { products, pagination } }
+      const productsData = response.data?.data?.products || [];
+      setProducts(productsData);
+      calculateStats(productsData);
       message.success('Products loaded successfully');
     } catch (error) {
       message.error('Failed to load products');
@@ -67,6 +69,10 @@ const AdminProducts = () => {
   };
 
   const calculateStats = (productsData) => {
+    if (!Array.isArray(productsData)) {
+      setStats({ total: 0, active: 0, lowStock: 0, outOfStock: 0 });
+      return;
+    }
     const total = productsData.length;
     const active = productsData.filter(p => p.status === 'active').length;
     const lowStock = productsData.filter(p => p.stock_quantity > 0 && p.stock_quantity <= p.reorder_level).length;
@@ -125,7 +131,7 @@ const AdminProducts = () => {
     return { color: 'green', text: 'In Stock' };
   };
 
-  const filteredProducts = products.filter(product => {
+  const filteredProducts = (Array.isArray(products) ? products : []).filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchText.toLowerCase()) ||
                          product.sku?.toLowerCase().includes(searchText.toLowerCase());
     const matchesCategory = filterCategory === 'all' || product.category_id === parseInt(filterCategory);
@@ -176,7 +182,7 @@ const AdminProducts = () => {
       width: 100,
       render: (status) => (
         <Tag color={status === 'active' ? 'green' : 'red'}>
-          {status.toUpperCase()}
+          {status?.toUpperCase() || 'N/A'}
         </Tag>
       ),
     },

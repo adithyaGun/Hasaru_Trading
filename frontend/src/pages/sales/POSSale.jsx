@@ -62,7 +62,9 @@ const POSSale = () => {
   const fetchProducts = async () => {
     try {
       const response = await api.get('/products');
-      const activeProducts = response.data.filter(p => p.status === 'active' && p.stock_quantity > 0);
+      // Backend returns { success, message, data: { products, pagination } }
+      const productsData = response.data?.data?.products || [];
+      const activeProducts = productsData.filter(p => p.status === 'active' && p.stock_quantity > 0);
       setProducts(activeProducts);
     } catch (error) {
       message.error('Failed to load products');
