@@ -185,7 +185,7 @@ const AdminReports = () => {
       title: 'Revenue',
       dataIndex: 'revenue',
       key: 'revenue',
-      render: (value) => `$${value.toLocaleString()}`,
+      render: (value) => `Rs. ${value.toLocaleString()}`,
     },
   ];
 
@@ -193,9 +193,6 @@ const AdminReports = () => {
     <AdminLayout>
       <div className="mb-6">
         <Row justify="space-between" align="middle" className="mb-6">
-          <Col>
-            <h1 className="text-2xl font-bold">Sales & Inventory Reports</h1>
-          </Col>
           <Col>
             <Space>
               <Select

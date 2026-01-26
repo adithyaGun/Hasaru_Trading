@@ -74,7 +74,7 @@ const AdminProducts = () => {
       return;
     }
     const total = productsData.length;
-    const active = productsData.filter(p => p.status === 'active').length;
+    const active = productsData.filter(p => p.is_active === 1).length;
     const lowStock = productsData.filter(p => p.stock_quantity > 0 && p.stock_quantity <= p.reorder_level).length;
     const outOfStock = productsData.filter(p => p.stock_quantity === 0).length;
     setStats({ total, active, lowStock, outOfStock });
@@ -90,8 +90,8 @@ const AdminProducts = () => {
     setEditingProduct(record);
     form.setFieldsValue({
       ...record,
-      category_id: record.category_id || undefined,
-      supplier_id: record.supplier_id || undefined
+      category: record.category || undefined,
+      brand: record.brand || undefined
     });
     setModalVisible(true);
   };
@@ -134,8 +134,10 @@ const AdminProducts = () => {
   const filteredProducts = (Array.isArray(products) ? products : []).filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchText.toLowerCase()) ||
                          product.sku?.toLowerCase().includes(searchText.toLowerCase());
-    const matchesCategory = filterCategory === 'all' || product.category_id === parseInt(filterCategory);
-    const matchesStatus = filterStatus === 'all' || product.status === filterStatus;
+    const matchesCategory = filterCategory === 'all' || product.category === filterCategory;
+    const matchesStatus = filterStatus === 'all' || 
+                         (filterStatus === 'active' && product.is_active === 1) || 
+                         (filterStatus === 'inactive' && product.is_active === 0);
     return matchesSearch && matchesCategory && matchesStatus;
   });
 
@@ -154,16 +156,22 @@ const AdminProducts = () => {
     },
     {
       title: 'Category',
-      dataIndex: 'category_name',
-      key: 'category_name',
+      dataIndex: 'category',
+      key: 'category',
       width: 120,
+    },
+    {
+      title: 'Brand',
+      dataIndex: 'brand',
+      key: 'brand',
+      width: 100,
     },
     {
       title: 'Price',
       dataIndex: 'selling_price',
       key: 'selling_price',
       width: 100,
-      render: (price) => `$${parseFloat(price).toFixed(2)}`,
+      render: (price) => `Rs. ${parseFloat(price).toFixed(2)}`,
     },
     {
       title: 'Stock',
@@ -177,12 +185,12 @@ const AdminProducts = () => {
     },
     {
       title: 'Status',
-      dataIndex: 'status',
-      key: 'status',
+      dataIndex: 'is_active',
+      key: 'is_active',
       width: 100,
-      render: (status) => (
-        <Tag color={status === 'active' ? 'green' : 'red'}>
-          {status?.toUpperCase() || 'N/A'}
+      render: (is_active) => (
+        <Tag color={is_active === 1 ? 'green' : 'red'}>
+          {is_active === 1 ? 'ACTIVE' : 'INACTIVE'}
         </Tag>
       ),
     },
@@ -217,8 +225,6 @@ const AdminProducts = () => {
   return (
     <AdminLayout>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold mb-4">Products Management</h1>
-        
         {/* Statistics Cards */}
         <Row gutter={16} className="mb-6">
           <Col xs={24} sm={12} lg={6}>
@@ -279,9 +285,14 @@ const AdminProducts = () => {
                 onChange={setFilterCategory}
               >
                 <Option value="all">All Categories</Option>
-                <Option value="1">Tires</Option>
-                <Option value="2">Batteries</Option>
-                <Option value="3">Engine Parts</Option>
+                <Option value="Tires">Tires</Option>
+                <Option value="Batteries">Batteries</Option>
+                <Option value="Engine Oil">Engine Oil</Option>
+                <Option value="Brake Pads">Brake Pads</Option>
+                <Option value="Filters">Filters</Option>
+                <Option value="Spark Plugs">Spark Plugs</Option>
+                <Option value="Wipers">Wipers</Option>
+                <Option value="Coolants">Coolants</Option>
               </Select>
             </Col>
             <Col xs={24} md={5}>
@@ -376,26 +387,29 @@ const AdminProducts = () => {
           <Row gutter={16}>
             <Col xs={24} md={12}>
               <Form.Item
-                name="category_id"
+                name="category"
                 label="Category"
                 rules={[{ required: true, message: 'Please select category' }]}
               >
                 <Select placeholder="Select category">
-                  <Option value={1}>Tires</Option>
-                  <Option value={2}>Batteries</Option>
-                  <Option value={3}>Engine Parts</Option>
+                  <Option value="Tires">Tires</Option>
+                  <Option value="Batteries">Batteries</Option>
+                  <Option value="Engine Oil">Engine Oil</Option>
+                  <Option value="Brake Pads">Brake Pads</Option>
+                  <Option value="Filters">Filters</Option>
+                  <Option value="Spark Plugs">Spark Plugs</Option>
+                  <Option value="Wipers">Wipers</Option>
+                  <Option value="Coolants">Coolants</Option>
                 </Select>
               </Form.Item>
             </Col>
             <Col xs={24} md={12}>
               <Form.Item
-                name="supplier_id"
-                label="Supplier"
+                name="brand"
+                label="Brand"
+                rules={[{ required: true, message: 'Please enter brand' }]}
               >
-                <Select placeholder="Select supplier">
-                  <Option value={1}>Supplier 1</Option>
-                  <Option value={2}>Supplier 2</Option>
-                </Select>
+                <Input placeholder="Enter brand name" />
               </Form.Item>
             </Col>
           </Row>
@@ -410,16 +424,16 @@ const AdminProducts = () => {
           <Row gutter={16}>
             <Col xs={24} md={8}>
               <Form.Item
-                name="cost_price"
-                label="Cost Price"
-                rules={[{ required: true, message: 'Please enter cost price' }]}
+                name="purchase_price"
+                label="Purchase Price"
+                rules={[{ required: true, message: 'Please enter purchase price' }]}
               >
                 <InputNumber
                   style={{ width: '100%' }}
                   placeholder="0.00"
                   min={0}
                   step={0.01}
-                  prefix="$"
+                  prefix="Rs."
                 />
               </Form.Item>
             </Col>
@@ -434,22 +448,24 @@ const AdminProducts = () => {
                   placeholder="0.00"
                   min={0}
                   step={0.01}
-                  prefix="$"
+                  prefix="Rs."
                 />
               </Form.Item>
             </Col>
             <Col xs={24} md={8}>
               <Form.Item
-                name="discount_price"
-                label="Discount Price"
+                name="unit"
+                label="Unit"
+                rules={[{ required: true, message: 'Please enter unit' }]}
+                initialValue="piece"
               >
-                <InputNumber
-                  style={{ width: '100%' }}
-                  placeholder="0.00"
-                  min={0}
-                  step={0.01}
-                  prefix="$"
-                />
+                <Select placeholder="Select unit">
+                  <Option value="piece">Piece</Option>
+                  <Option value="set">Set</Option>
+                  <Option value="box">Box</Option>
+                  <Option value="bottle">Bottle</Option>
+                  <Option value="pair">Pair</Option>
+                </Select>
               </Form.Item>
             </Col>
           </Row>
@@ -483,14 +499,14 @@ const AdminProducts = () => {
             </Col>
             <Col xs={24} md={8}>
               <Form.Item
-                name="status"
+                name="is_active"
                 label="Status"
                 rules={[{ required: true, message: 'Please select status' }]}
-                initialValue="active"
+                initialValue={1}
               >
                 <Select>
-                  <Option value="active">Active</Option>
-                  <Option value="inactive">Inactive</Option>
+                  <Option value={1}>Active</Option>
+                  <Option value={0}>Inactive</Option>
                 </Select>
               </Form.Item>
             </Col>

@@ -205,9 +205,6 @@ const AdminAnalytics = () => {
       <div className="mb-6">
         <Row justify="space-between" align="middle" className="mb-6">
           <Col>
-            <h1 className="text-2xl font-bold">Business Analytics & Insights</h1>
-          </Col>
-          <Col>
             <Space>
               <Button icon={<ReloadOutlined />} onClick={fetchAnalytics}>
                 Refresh
@@ -231,7 +228,7 @@ const AdminAnalytics = () => {
                 title="Avg. Order Value"
                 value={kpis.avgOrderValue}
                 precision={2}
-                prefix="$"
+                prefix="Rs."
                 valueStyle={{ color: '#dc2626' }}
                 suffix={
                   <span style={{ fontSize: '14px', color: '#16a34a' }}>

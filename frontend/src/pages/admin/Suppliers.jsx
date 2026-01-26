@@ -206,8 +206,6 @@ const AdminSuppliers = () => {
   return (
     <AdminLayout>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold mb-4">Suppliers Management</h1>
-        
         {/* Statistics Cards */}
         <Row gutter={16} className="mb-6">
           <Col xs={24} sm={8}>

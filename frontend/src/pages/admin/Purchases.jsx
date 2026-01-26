@@ -93,7 +93,7 @@ const AdminPurchases = () => {
       const response = await api.get('/products');
       // Backend returns { success, message, data: { products, pagination } }
       const productsData = response.data?.data?.products || [];
-      setProducts(productsData.filter(p => p.status === 'active'));
+      setProducts(productsData.filter(p => p.is_active === 1));
     } catch (error) {
       console.error('Error fetching products:', error);
     }
@@ -288,7 +288,7 @@ const AdminPurchases = () => {
       dataIndex: 'total_amount',
       key: 'total_amount',
       width: 120,
-      render: (amount) => `$${parseFloat(amount).toFixed(2)}`,
+      render: (amount) => `Rs. ${parseFloat(amount).toFixed(2)}`,
     },
     {
       title: 'Status',
@@ -365,8 +365,6 @@ const AdminPurchases = () => {
   return (
     <AdminLayout>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold mb-4">Purchase Orders</h1>
-        
         {/* Statistics Cards */}
         <Row gutter={16} className="mb-6">
           <Col xs={24} sm={12} lg={6}>
@@ -561,7 +559,7 @@ const AdminPurchases = () => {
                 >
                   {products.map(product => (
                     <Option key={product.id} value={product.id}>
-                      {product.name} - ${product.cost_price}
+                      {product.name} - Rs. {product.cost_price}
                     </Option>
                   ))}
                 </Select>
@@ -582,7 +580,7 @@ const AdminPurchases = () => {
                   onChange={(value) => handleItemChange(index, 'unit_price', value)}
                   min={0}
                   step={0.01}
-                  prefix="$"
+                  prefix="Rs."
                   style={{ width: '100%' }}
                 />
               </Col>
@@ -604,7 +602,7 @@ const AdminPurchases = () => {
                 title="Total Amount" 
                 value={calculateTotal()}
                 precision={2}
-                prefix="$"
+                prefix="Rs."
                 valueStyle={{ color: '#dc2626', fontWeight: 'bold' }}
               />
             </Col>
@@ -670,12 +668,12 @@ const AdminPurchases = () => {
                   title: 'Unit Price',
                   dataIndex: 'unit_price',
                   key: 'unit_price',
-                  render: (price) => `$${parseFloat(price).toFixed(2)}`,
+                  render: (price) => `Rs. ${parseFloat(price).toFixed(2)}`,
                 },
                 {
                   title: 'Total',
                   key: 'total',
-                  render: (_, record) => `$${(record.quantity * record.unit_price).toFixed(2)}`,
+                  render: (_, record) => `Rs. ${(record.quantity * record.unit_price).toFixed(2)}`,
                 },
               ]}
               summary={(pageData) => {
@@ -687,7 +685,7 @@ const AdminPurchases = () => {
                         <strong>Total Amount</strong>
                       </Table.Summary.Cell>
                       <Table.Summary.Cell index={1}>
-                        <strong style={{ color: '#dc2626' }}>${total.toFixed(2)}</strong>
+                        <strong style={{ color: '#dc2626' }}>Rs. {total.toFixed(2)}</strong>
                       </Table.Summary.Cell>
                     </Table.Summary.Row>
                   </Table.Summary>

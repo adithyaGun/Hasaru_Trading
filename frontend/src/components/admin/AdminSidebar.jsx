@@ -1,5 +1,6 @@
 import { Layout, Menu } from 'antd';
 import { Link, useLocation } from 'react-router-dom';
+import { useState } from 'react';
 import {
   DashboardOutlined,
   ShoppingOutlined,
@@ -10,6 +11,8 @@ import {
   BellOutlined,
   UserOutlined,
   TagOutlined,
+  MenuFoldOutlined,
+  MenuUnfoldOutlined,
 } from '@ant-design/icons';
 
 const { Sider } = Layout;
@@ -17,6 +20,7 @@ const { Sider } = Layout;
 const AdminSidebar = () => {
   const location = useLocation();
   const currentPath = location.pathname;
+  const [collapsed, setCollapsed] = useState(false);
 
   const menuItems = [
     {
@@ -67,9 +71,23 @@ const AdminSidebar = () => {
   ];
 
   return (
-    <Sider width={250} theme="light" className="min-h-screen">
-      <div className="p-4 text-center font-bold text-xl border-b">
-        Admin Panel
+    <Sider 
+      width={250} 
+      theme="light" 
+      className="min-h-screen"
+      collapsible
+      collapsed={collapsed}
+      onCollapse={(value) => setCollapsed(value)}
+      trigger={null}
+    >
+      <div className="p-4 text-center font-bold text-xl border-b flex items-center justify-between">
+        {!collapsed && <span>Admin Panel</span>}
+        <div 
+          className="cursor-pointer hover:text-red-600 transition-colors"
+          onClick={() => setCollapsed(!collapsed)}
+        >
+          {collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+        </div>
       </div>
       <Menu
         mode="inline"

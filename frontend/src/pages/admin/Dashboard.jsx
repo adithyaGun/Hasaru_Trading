@@ -71,8 +71,6 @@ const AdminDashboard = () => {
 
   return (
     <AdminLayout>
-      <h1 className="text-2xl font-bold mb-6">Dashboard</h1>
-
       <Row gutter={[16, 16]} className="mb-6">
         <Col xs={24} sm={12} lg={6}>
           <Card>
