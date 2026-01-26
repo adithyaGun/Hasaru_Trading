@@ -6,6 +6,16 @@ import { Link } from 'react-router-dom';
 const RoleBasedRoute = ({ allowedRoles }) => {
   const { isAuthenticated, user } = useSelector((state) => state.auth);
 
+  // Map role to correct path
+  const getRolePath = (role) => {
+    const roleToPath = {
+      'admin': '/admin',
+      'sales_staff': '/sales',
+      'customer': '/customer'
+    };
+    return roleToPath[role] || `/${role}`;
+  };
+
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
@@ -18,7 +28,7 @@ const RoleBasedRoute = ({ allowedRoles }) => {
           title="403"
           subTitle="Sorry, you are not authorized to access this page."
           extra={
-            <Link to={`/${user?.role || ''}`}>
+            <Link to={getRolePath(user?.role)}>
               <Button type="primary">Go to Dashboard</Button>
             </Link>
           }

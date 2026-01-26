@@ -20,13 +20,23 @@ const Navbar = () => {
     setMobileMenuOpen(false);
   };
 
+  // Map role to correct path
+  const getRolePath = (role) => {
+    const roleToPath = {
+      'admin': '/admin',
+      'sales_staff': '/sales',
+      'customer': '/customer'
+    };
+    return roleToPath[role] || `/${role}`;
+  };
+
   const userMenuItems = [
     {
       key: 'dashboard',
       icon: <LayoutDashboard className="w-4 h-4" />,
       label: 'Dashboard',
       onClick: () => {
-        navigate(`/${user?.role}`);
+        navigate(getRolePath(user?.role));
         setMobileMenuOpen(false);
       },
     },

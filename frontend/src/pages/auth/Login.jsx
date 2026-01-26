@@ -16,7 +16,14 @@ const Login = () => {
   useEffect(() => {
     // Navigate based on role after successful login
     if (user) {
-      navigate(`/${user.role}`, { replace: true });
+      // Map role to correct path
+      const roleToPath = {
+        'admin': '/admin',
+        'sales_staff': '/sales',
+        'customer': '/customer'
+      };
+      const path = roleToPath[user.role] || `/${user.role}`;
+      navigate(path, { replace: true });
     }
   }, [user, navigate]);
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import AdminLayout from '../../components/admin/AdminLayout';
+import SalesLayout from '../../components/sales/SalesLayout';
 import { 
   Row, 
   Col, 
@@ -16,7 +16,10 @@ import {
   Tag,
   Divider,
   Typography,
-  Empty
+  Empty,
+  Checkbox,
+  Radio,
+  Tooltip
 } from 'antd';
 import {
   SearchOutlined,
@@ -26,9 +29,12 @@ import {
   PrinterOutlined,
   ClearOutlined,
   UserOutlined,
-  ShoppingCartOutlined
+  ShoppingCartOutlined,
+  PercentageOutlined,
+  InfoCircleOutlined
 } from '@ant-design/icons';
 import api from '../../api/axios';
+import ReceiptPrint from '../../components/pos/ReceiptPrint';
 
 const { Option } = Select;
 const { Text } = Typography;
@@ -39,7 +45,12 @@ const POSSale = () => {
   const [cart, setCart] = useState([]);
   const [searchText, setSearchText] = useState('');
   const [paymentModalVisible, setPaymentModalVisible] = useState(false);
+  const [receiptModalVisible, setReceiptModalVisible] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [discount, setDiscount] = useState(0);
+  const [discountType, setDiscountType] = useState('fixed'); // 'fixed' or 'percentage'
+  const [lastSaleData, setLastSaleData] = useState(null);
+  const [isWalkIn, setIsWalkIn] = useState(true);
   const [form] = Form.useForm();
   const searchInputRef = useRef(null);
 
@@ -143,14 +154,18 @@ const POSSale = () => {
     return cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   };
 
-  const calculateTax = (subtotal) => {
-    return subtotal * 0.08; // 8% tax
+  const calculateDiscount = () => {
+    const subtotal = calculateSubtotal();
+    if (discountType === 'percentage') {
+      return (subtotal * discount) / 100;
+    }
+    return discount;
   };
 
   const calculateTotal = () => {
     const subtotal = calculateSubtotal();
-    const tax = calculateTax(subtotal);
-    return subtotal + tax;
+    const discountAmount = calculateDiscount();
+    return Math.max(0, subtotal - discountAmount);
   };
 
   const handleCheckout = () => {
@@ -166,50 +181,63 @@ const POSSale = () => {
     setLoading(true);
     try {
       const subtotal = calculateSubtotal();
-      const tax = calculateTax(subtotal);
+      const discountAmount = calculateDiscount();
       const total = calculateTotal();
 
       const orderData = {
-        customer_name: values.customer_name,
-        customer_phone: values.customer_phone,
-        payment_method: values.payment_method,
+        channel: 'pos',
+        customer_id: isWalkIn ? null : values.customer_id,
         items: cart.map(item => ({
           product_id: item.id,
-          quantity: item.quantity,
-          price: item.price
+          quantity: item.quantity
         })),
-        subtotal,
-        tax,
-        total_amount: total,
-        paid_amount: values.paid_amount,
-        change_amount: values.paid_amount - total,
-        sale_type: 'otc'
+        discount: discountAmount,
+        payment_method: values.payment_method || 'cash',
+        notes: isWalkIn 
+          ? `Walk-in customer${values.customer_name ? ': ' + values.customer_name : ''}`
+          : values.notes
       };
 
-      await api.post('/sales/otc', orderData);
+      const response = await api.post('/sales', orderData);
+      const sale_id = response.data?.data?.sale_id;
+      
+      // Confirm payment immediately for POS sales
+      if (sale_id) {
+        await api.post(`/sales/${sale_id}/payment`, {
+          payment_status: 'completed'
+        });
+      }
+
+      // Store sale data for receipt
+      setLastSaleData({
+        sale_id,
+        customer_name: isWalkIn ? (values.customer_name || 'Walk-in Customer') : values.customer_name,
+        customer_phone: values.customer_phone,
+        payment_method: values.payment_method || 'cash',
+        items: cart,
+        subtotal,
+        discount: discountAmount,
+        total,
+        sale_date: new Date().toLocaleString()
+      });
       
       message.success('Sale completed successfully!');
       setPaymentModalVisible(false);
       setCart([]);
+      setDiscount(0);
+      setDiscountType('fixed');
       form.resetFields();
       
-      // Print receipt (optional)
-      if (values.print_receipt) {
-        handlePrintReceipt(orderData);
-      }
+      // Show receipt modal
+      setReceiptModalVisible(true);
       
       fetchProducts(); // Refresh product stock
     } catch (error) {
-      message.error('Failed to complete sale');
+      message.error(error.response?.data?.message || 'Failed to complete sale');
       console.error('Error processing sale:', error);
     } finally {
       setLoading(false);
     }
-  };
-
-  const handlePrintReceipt = (orderData) => {
-    message.info('Printing receipt...');
-    // Implement receipt printing logic
   };
 
   const cartColumns = [
@@ -229,7 +257,7 @@ const POSSale = () => {
       dataIndex: 'price',
       key: 'price',
       width: 100,
-      render: (price) => `$${price.toFixed(2)}`,
+      render: (price) => `Rs. ${price.toFixed(2)}`,
     },
     {
       title: 'Quantity',
@@ -250,7 +278,7 @@ const POSSale = () => {
       title: 'Total',
       key: 'total',
       width: 100,
-      render: (_, record) => `$${(record.price * record.quantity).toFixed(2)}`,
+      render: (_, record) => `Rs. ${(record.price * record.quantity).toFixed(2)}`,
     },
     {
       title: 'Action',
@@ -268,7 +296,7 @@ const POSSale = () => {
   ];
 
   return (
-    <AdminLayout>
+    <SalesLayout>
       <div style={{ minHeight: 'calc(100vh - 140px)' }}>
         <h1 className="text-2xl font-bold mb-4">Point of Sale - Over the Counter</h1>
 
@@ -318,7 +346,7 @@ const POSSale = () => {
                         </div>
                         <div>
                           <Text style={{ fontSize: '16px', fontWeight: 'bold', color: '#dc2626' }}>
-                            ${parseFloat(product.selling_price).toFixed(2)}
+                            Rs. {parseFloat(product.selling_price).toFixed(2)}
                           </Text>
                         </div>
                       </div>
@@ -370,17 +398,49 @@ const POSSale = () => {
               <div style={{ marginBottom: '20px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
                   <Text>Subtotal:</Text>
-                  <Text strong>${calculateSubtotal().toFixed(2)}</Text>
+                  <Text strong>Rs. {calculateSubtotal().toFixed(2)}</Text>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-                  <Text>Tax (8%):</Text>
-                  <Text strong>${calculateTax(calculateSubtotal()).toFixed(2)}</Text>
+                
+                {/* Discount Section */}
+                <div style={{ marginBottom: '12px', padding: '12px', background: '#f5f5f5', borderRadius: '4px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                    <PercentageOutlined />
+                    <Text strong>Discount</Text>
+                  </div>
+                  <Space.Compact style={{ width: '100%', marginBottom: '8px' }}>
+                    <Radio.Group 
+                      value={discountType} 
+                      onChange={(e) => setDiscountType(e.target.value)}
+                      size="small"
+                    >
+                      <Radio.Button value="fixed">Rs.</Radio.Button>
+                      <Radio.Button value="percentage">%</Radio.Button>
+                    </Radio.Group>
+                    <InputNumber
+                      min={0}
+                      max={discountType === 'percentage' ? 100 : calculateSubtotal()}
+                      value={discount}
+                      onChange={setDiscount}
+                      style={{ width: '100%' }}
+                      placeholder="0"
+                      disabled={cart.length === 0}
+                    />
+                  </Space.Compact>
+                  {discount > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Text type="secondary" style={{ fontSize: '12px' }}>Discount Amount:</Text>
+                      <Text type="danger" style={{ fontSize: '12px' }}>
+                        - Rs. {calculateDiscount().toFixed(2)}
+                      </Text>
+                    </div>
+                  )}
                 </div>
+                
                 <Divider style={{ margin: '12px 0' }} />
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
                   <Text style={{ fontSize: '18px', fontWeight: 'bold' }}>Total:</Text>
                   <Text style={{ fontSize: '24px', fontWeight: 'bold', color: '#dc2626' }}>
-                    ${calculateTotal().toFixed(2)}
+                    Rs. {calculateTotal().toFixed(2)}
                   </Text>
                 </div>
               </div>
@@ -422,24 +482,41 @@ const POSSale = () => {
           onFinish={handlePayment}
           initialValues={{
             payment_method: 'cash',
-            print_receipt: true
+            is_walk_in: true
           }}
         >
           <Card style={{ marginBottom: '20px', background: '#f5f5f5' }}>
             <div style={{ textAlign: 'center' }}>
               <Text type="secondary">Total Amount</Text>
               <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#dc2626' }}>
-                ${calculateTotal().toFixed(2)}
+                Rs. {calculateTotal().toFixed(2)}
               </div>
+              {discount > 0 && (
+                <div style={{ marginTop: '8px' }}>
+                  <Tag color="red">Discount: Rs. {calculateDiscount().toFixed(2)}</Tag>
+                </div>
+              )}
             </div>
           </Card>
+
+          <Form.Item>
+            <Checkbox 
+              checked={isWalkIn} 
+              onChange={(e) => setIsWalkIn(e.target.checked)}
+            >
+              Walk-in Customer (No account)
+            </Checkbox>
+          </Form.Item>
 
           <Form.Item
             name="customer_name"
             label="Customer Name"
-            rules={[{ required: true, message: 'Please enter customer name' }]}
+            rules={[{ required: false }]}
           >
-            <Input prefix={<UserOutlined />} placeholder="Enter customer name" />
+            <Input 
+              prefix={<UserOutlined />} 
+              placeholder={isWalkIn ? "Optional" : "Enter customer name"} 
+            />
           </Form.Item>
 
           <Form.Item
@@ -461,80 +538,49 @@ const POSSale = () => {
             </Select>
           </Form.Item>
 
-          <Form.Item
-            name="paid_amount"
-            label="Amount Paid"
-            rules={[
-              { required: true, message: 'Please enter amount paid' },
-              {
-                validator: (_, value) => {
-                  if (value >= calculateTotal()) {
-                    return Promise.resolve();
-                  }
-                  return Promise.reject(new Error('Amount paid cannot be less than total'));
-                }
-              }
-            ]}
-          >
-            <InputNumber
-              style={{ width: '100%' }}
-              min={0}
-              step={0.01}
-              prefix="$"
-              placeholder="0.00"
-            />
-          </Form.Item>
-
-          <Form.Item
-            noStyle
-            shouldUpdate={(prevValues, currentValues) => 
-              prevValues.paid_amount !== currentValues.paid_amount
-            }
-          >
-            {({ getFieldValue }) => {
-              const paidAmount = getFieldValue('paid_amount') || 0;
-              const change = paidAmount - calculateTotal();
-              
-              return change >= 0 ? (
-                <div style={{ 
-                  padding: '12px', 
-                  background: '#f6ffed', 
-                  border: '1px solid #b7eb8f',
-                  borderRadius: '4px',
-                  marginBottom: '20px'
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Text strong>Change:</Text>
-                    <Text strong style={{ fontSize: '18px', color: '#16a34a' }}>
-                      ${change.toFixed(2)}
-                    </Text>
-                  </div>
-                </div>
-              ) : null;
-            }}
-          </Form.Item>
-
           <Form.Item>
             <Space style={{ width: '100%', justifyContent: 'space-between' }}>
               <Button onClick={() => setPaymentModalVisible(false)}>
                 Cancel
               </Button>
-              <Space>
-                <Button
-                  type="primary"
-                  htmlType="submit"
-                  loading={loading}
-                  icon={<DollarOutlined />}
-                  style={{ backgroundColor: '#dc2626', borderColor: '#dc2626' }}
-                >
-                  Complete Sale
-                </Button>
-              </Space>
+              <Button
+                type="primary"
+                htmlType="submit"
+                loading={loading}
+                icon={<DollarOutlined />}
+                style={{ backgroundColor: '#dc2626', borderColor: '#dc2626' }}
+              >
+                Complete Sale
+              </Button>
             </Space>
           </Form.Item>
         </Form>
       </Modal>
-    </AdminLayout>
+
+      {/* Receipt Modal */}
+      <Modal
+        title="Sale Receipt"
+        open={receiptModalVisible}
+        onCancel={() => setReceiptModalVisible(false)}
+        footer={[
+          <Button key="close" onClick={() => setReceiptModalVisible(false)}>
+            Close
+          </Button>,
+          <Button
+            key="print"
+            type="primary"
+            icon={<PrinterOutlined />}
+            onClick={() => window.print()}
+            style={{ backgroundColor: '#dc2626', borderColor: '#dc2626' }}
+          >
+            Print Receipt
+          </Button>
+        ]}
+        width={400}
+      >
+        {lastSaleData && <ReceiptPrint saleData={lastSaleData} />}
+      </Modal>
+    </SalesLayout>
   );
 };
 

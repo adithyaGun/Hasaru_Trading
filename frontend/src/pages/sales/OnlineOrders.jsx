@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import AdminLayout from '../../components/admin/AdminLayout';
+import SalesLayout from '../../components/sales/SalesLayout';
 import { 
   Table, 
   Button, 
@@ -51,9 +51,9 @@ const OnlineOrders = () => {
   const fetchOrders = async () => {
     setLoading(true);
     try {
-      const response = await api.get('/sales/online/orders');
-      // Backend returns { success, message, data: { orders, pagination } }
-      const ordersData = response.data?.data?.orders || [];
+      const response = await api.get('/sales?channel=online');
+      // Backend returns { success, message, data: { sales, pagination } }
+      const ordersData = response.data?.data?.sales || [];
       setOrders(ordersData);
       calculateStats(ordersData);
       message.success('Orders loaded successfully');
@@ -276,7 +276,7 @@ const OnlineOrders = () => {
   ];
 
   return (
-    <AdminLayout>
+    <SalesLayout>
       <div className="mb-6">
         <h1 className="text-2xl font-bold mb-4">Online Orders Management</h1>
         
@@ -516,7 +516,7 @@ const OnlineOrders = () => {
           </>
         )}
       </Modal>
-    </AdminLayout>
+    </SalesLayout>
   );
 };
 

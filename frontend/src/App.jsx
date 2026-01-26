@@ -40,6 +40,16 @@ import NotFound from './pages/NotFound';
 function App() {
   const { isAuthenticated, user } = useSelector((state) => state.auth);
 
+  // Map role to correct path
+  const getRolePath = (role) => {
+    const roleToPath = {
+      'admin': '/admin',
+      'sales_staff': '/sales',
+      'customer': '/customer'
+    };
+    return roleToPath[role] || `/${role}`;
+  };
+
   return (
     <Routes>
       {/* Public routes */}
@@ -52,7 +62,7 @@ function App() {
       {/* Auth routes - redirect if already logged in */}
       <Route 
         path="/login" 
-        element={isAuthenticated ? <Navigate to={`/${user?.role}`} replace /> : <Login />} 
+        element={isAuthenticated ? <Navigate to={getRolePath(user?.role)} replace /> : <Login />} 
       />
       <Route 
         path="/register" 

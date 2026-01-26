@@ -29,3 +29,9 @@ exports.receiveGoods = asyncHandler(async (req, res) => {
   const purchase = await purchaseService.receiveGoods(req.params.id, req.user.id);
   res.json(successResponse(purchase, 'Goods received successfully. Stock updated.'));
 });
+
+exports.confirmReceive = asyncHandler(async (req, res) => {
+  const { items } = req.body;
+  const purchase = await purchaseService.confirmReceive(req.params.id, items, req.user.id);
+  res.json(successResponse(purchase, 'Receipt confirmed - batches created successfully'));
+});

@@ -14,12 +14,12 @@ const authRoutes = require('./routes/auth');
 const productRoutes = require('./routes/products');
 const supplierRoutes = require('./routes/suppliers');
 const purchaseRoutes = require('./routes/purchases');
-const onlineSalesRoutes = require('./routes/onlineSales');
-const otcSalesRoutes = require('./routes/otcSales');
 const reportRoutes = require('./routes/reports');
 const analyticsRoutes = require('./routes/analytics');
 const alertRoutes = require('./routes/alerts');
 const promotionRoutes = require('./routes/promotions');
+const batchRoutes = require('./routes/batches');
+const salesRoutes = require('./routes/sales');
 
 // Initialize Express app
 const app = express();
@@ -81,12 +81,12 @@ app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/suppliers', supplierRoutes);
 app.use('/api/purchases', purchaseRoutes);
-app.use('/api/sales/online', onlineSalesRoutes);
-app.use('/api/sales/otc', otcSalesRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/alerts', alertRoutes);
 app.use('/api/promotions', promotionRoutes);
+app.use('/api/batches', batchRoutes);
+app.use('/api/sales', salesRoutes);
 
 // ==========================================
 // ERROR HANDLING

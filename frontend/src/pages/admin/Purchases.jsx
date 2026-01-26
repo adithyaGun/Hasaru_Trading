@@ -17,7 +17,9 @@ import {
   Card,
   Statistic,
   Descriptions,
-  Divider
+  Divider,
+  Checkbox,
+  Tooltip
 } from 'antd';
 import { 
   PlusOutlined, 
@@ -27,7 +29,8 @@ import {
   ReloadOutlined,
   EyeOutlined,
   CheckCircleOutlined,
-  CloseCircleOutlined
+  CloseCircleOutlined,
+  InfoCircleOutlined
 } from '@ant-design/icons';
 import api from '../../api/axios';
 
@@ -544,6 +547,24 @@ const AdminPurchases = () => {
             label="Notes"
           >
             <TextArea rows={2} placeholder="Enter any additional notes" />
+          </Form.Item>
+
+          <Form.Item
+            name="auto_receive"
+            label={
+              <span>
+                Auto-receive Stock{' '}
+                <Tooltip title="When enabled, stock batches will be automatically created when this order is marked as 'received'. Disable for manual batch confirmation with quantity adjustments.">
+                  <InfoCircleOutlined style={{ color: '#1890ff' }} />
+                </Tooltip>
+              </span>
+            }
+            valuePropName="checked"
+            initialValue={true}
+          >
+            <Checkbox>
+              Automatically create stock batches when order is received
+            </Checkbox>
           </Form.Item>
 
           <Divider>Order Items</Divider>

@@ -16,4 +16,7 @@ router.put('/:id/approve', auth, adminOnly, idValidation, purchaseController.app
 // Admin or Staff can receive goods
 router.put('/:id/receive', auth, staffOnly, idValidation, purchaseController.receiveGoods);
 
+// Confirm manual receive (create batches after quantity verification)
+router.post('/:id/confirm-receive', auth, staffOnly, idValidation, purchaseController.confirmReceive);
+
 module.exports = router;

@@ -3,8 +3,9 @@
 -- Database Schema
 -- ============================================
 
--- Create database
-CREATE DATABASE IF NOT EXISTS tire_auto_parts_db;
+-- Drop and recreate database
+DROP DATABASE IF EXISTS tire_auto_parts_db;
+CREATE DATABASE tire_auto_parts_db;
 USE tire_auto_parts_db;
 
 -- ============================================
@@ -115,6 +116,7 @@ CREATE TABLE purchases (
     received_by INT,
     approved_by INT,
     approved_date DATETIME,
+    auto_receive BOOLEAN DEFAULT TRUE,
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -275,6 +277,106 @@ CREATE TABLE cart (
     FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
     UNIQUE KEY unique_cart_item (customer_id, product_id),
     INDEX idx_customer (customer_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ============================================
+-- 14. PRODUCT BATCHES TABLE (FIFO Inventory)
+-- ============================================
+CREATE TABLE product_batches (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    product_id INT NOT NULL,
+    supplier_id INT NOT NULL,
+    po_id INT,
+    batch_number VARCHAR(100) NOT NULL,
+    quantity_received INT NOT NULL,
+    quantity_remaining INT NOT NULL,
+    unit_cost DECIMAL(10, 2) NOT NULL,
+    received_date DATETIME NOT NULL,
+    expiry_date DATE,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+    FOREIGN KEY (supplier_id) REFERENCES suppliers(id),
+    FOREIGN KEY (po_id) REFERENCES purchases(id) ON DELETE SET NULL,
+    INDEX idx_product (product_id),
+    INDEX idx_supplier (supplier_id),
+    INDEX idx_po (po_id),
+    INDEX idx_received_date (received_date),
+    INDEX idx_active (is_active),
+    INDEX idx_product_active (product_id, is_active),
+    UNIQUE KEY unique_batch_number (batch_number)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ============================================
+-- 15. STOCK MOVEMENTS TABLE (Enhanced Audit Trail)
+-- ============================================
+CREATE TABLE stock_movements (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    batch_id INT,
+    product_id INT NOT NULL,
+    movement_type ENUM('purchase', 'sale', 'return', 'adjustment') NOT NULL,
+    quantity INT NOT NULL,
+    reference_id INT,
+    reference_type VARCHAR(50),
+    notes TEXT,
+    performed_by INT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (batch_id) REFERENCES product_batches(id) ON DELETE SET NULL,
+    FOREIGN KEY (product_id) REFERENCES products(id),
+    FOREIGN KEY (performed_by) REFERENCES users(id),
+    INDEX idx_batch (batch_id),
+    INDEX idx_product (product_id),
+    INDEX idx_movement_type (movement_type),
+    INDEX idx_created_at (created_at),
+    INDEX idx_reference (reference_type, reference_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ============================================
+-- 16. UNIFIED SALES TABLE (Online + POS)
+-- ============================================
+CREATE TABLE sales (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    customer_id INT,
+    channel ENUM('online', 'pos') NOT NULL,
+    sale_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    subtotal DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+    discount DECIMAL(10, 2) DEFAULT 0.00,
+    total_amount DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+    payment_method VARCHAR(50),
+    payment_status ENUM('pending', 'completed', 'failed') NOT NULL DEFAULT 'pending',
+    status ENUM('reserved', 'completed', 'returned', 'cancelled') NOT NULL DEFAULT 'reserved',
+    notes TEXT,
+    created_by INT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (customer_id) REFERENCES users(id) ON DELETE SET NULL,
+    FOREIGN KEY (created_by) REFERENCES users(id),
+    INDEX idx_channel (channel),
+    INDEX idx_customer (customer_id),
+    INDEX idx_status (status),
+    INDEX idx_payment_status (payment_status),
+    INDEX idx_sale_date (sale_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ============================================
+-- 17. SALES ITEMS TABLE (with Batch Traceability)
+-- ============================================
+CREATE TABLE sales_items (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    sale_id INT NOT NULL,
+    batch_id INT,
+    product_id INT NOT NULL,
+    quantity INT NOT NULL,
+    unit_price DECIMAL(10, 2) NOT NULL,
+    subtotal DECIMAL(12, 2) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (sale_id) REFERENCES sales(id) ON DELETE CASCADE,
+    FOREIGN KEY (batch_id) REFERENCES product_batches(id),
+    FOREIGN KEY (product_id) REFERENCES products(id),
+    INDEX idx_sale (sale_id),
+    INDEX idx_batch (batch_id),
+    INDEX idx_product (product_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ============================================

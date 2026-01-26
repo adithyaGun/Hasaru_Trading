@@ -29,18 +29,18 @@ INSERT INTO suppliers (name, email, phone, address, contact_person) VALUES
 -- ============================================
 INSERT INTO products (name, description, sku, barcode, category, brand, unit, purchase_price, selling_price, stock_quantity, reorder_level, minimum_stock_level) VALUES
 -- Tires
-('Michelin Primacy 4 195/65R15', 'Premium touring tire with excellent grip', 'TIRE-MICH-001', '8901234567890', 'Tires', 'Michelin', 'piece', 12500.00, 18000.00, 45, 15, 8),
-('Bridgestone Turanza T005 205/55R16', 'High performance tire for sedans', 'TIRE-BRID-001', '8901234567891', 'Tires', 'Bridgestone', 'piece', 14000.00, 20000.00, 35, 12, 6),
-('Yokohama BluEarth 185/60R14', 'Eco-friendly fuel-efficient tire', 'TIRE-YOKO-001', '8901234567892', 'Tires', 'Yokohama', 'piece', 9500.00, 14000.00, 28, 10, 5),
+('Michelin Primacy 4 195/65R15', 'Premium touring tire with excellent grip', 'TIRE-MICH-001', '8901234567890', 'Tires', 'Michelin', 'piece', 12500.00, 18000.00, 43, 15, 8),
+('Bridgestone Turanza T005 205/55R16', 'High performance tire for sedans', 'TIRE-BRID-001', '8901234567891', 'Tires', 'Bridgestone', 'piece', 14000.00, 20000.00, 34, 12, 6),
+('Yokohama BluEarth 185/60R14', 'Eco-friendly fuel-efficient tire', 'TIRE-YOKO-001', '8901234567892', 'Tires', 'Yokohama', 'piece', 9500.00, 14000.00, 27, 10, 5),
 ('Goodyear Assurance 215/60R17', 'All-season tire for SUVs', 'TIRE-GOOD-001', '8901234567893', 'Tires', 'Goodyear', 'piece', 16000.00, 23000.00, 18, 8, 4),
 
 -- Batteries
-('Amaron Pro 65Ah', '65Ah automotive battery with 48 months warranty', 'BATT-AMAR-001', '8901234567894', 'Batteries', 'Amaron', 'piece', 8500.00, 12500.00, 25, 10, 5),
+('Amaron Pro 65Ah', '65Ah automotive battery with 48 months warranty', 'BATT-AMAR-001', '8901234567894', 'Batteries', 'Amaron', 'piece', 8500.00, 12500.00, 23, 10, 5),
 ('Exide EPIQ 70Ah', '70Ah maintenance-free battery', 'BATT-EXID-001', '8901234567895', 'Batteries', 'Exide', 'piece', 9000.00, 13500.00, 20, 8, 4),
 ('Bosch S4 60Ah', 'German quality 60Ah battery', 'BATT-BOSC-001', '8901234567896', 'Batteries', 'Bosch', 'piece', 10000.00, 15000.00, 15, 6, 3),
 
 -- Engine Oil
-('Castrol Edge 5W-30 4L', 'Fully synthetic engine oil', 'OIL-CAST-001', '8901234567897', 'Engine Oil', 'Castrol', 'bottle', 4500.00, 6500.00, 60, 20, 10),
+('Castrol Edge 5W-30 4L', 'Fully synthetic engine oil', 'OIL-CAST-001', '8901234567897', 'Engine Oil', 'Castrol', 'bottle', 4500.00, 6500.00, 58, 20, 10),
 ('Mobil 1 10W-40 4L', 'Premium synthetic motor oil', 'OIL-MOBI-001', '8901234567898', 'Engine Oil', 'Mobil', 'bottle', 4800.00, 7000.00, 55, 20, 10),
 ('Shell Helix Ultra 5W-40 4L', 'Advanced synthetic oil', 'OIL-SHEL-001', '8901234567899', 'Engine Oil', 'Shell', 'bottle', 5000.00, 7200.00, 50, 18, 8),
 
@@ -53,7 +53,7 @@ INSERT INTO products (name, description, sku, barcode, category, brand, unit, pu
 ('K&N Air Filter - Performance', 'Reusable performance air filter', 'FILT-KN-001', '8901234567903', 'Filters', 'K&N', 'piece', 4500.00, 7500.00, 20, 8, 4),
 
 -- Spark Plugs
-('NGK Iridium Spark Plugs', 'Long-lasting iridium spark plugs', 'SPARK-NGK-001', '8901234567904', 'Spark Plugs', 'NGK', 'set', 2800.00, 4200.00, 40, 15, 8),
+('NGK Iridium Spark Plugs', 'Long-lasting iridium spark plugs', 'SPARK-NGK-001', '8901234567904', 'Spark Plugs', 'NGK', 'set', 2800.00, 4200.00, 39, 15, 8),
 ('Denso Platinum Spark Plugs', 'Premium platinum spark plugs', 'SPARK-DENS-001', '8901234567905', 'Spark Plugs', 'Denso', 'set', 3200.00, 4800.00, 35, 12, 6),
 
 -- Wipers
@@ -86,10 +86,10 @@ INSERT INTO product_promotions (product_id, promotion_id) VALUES
 -- ============================================
 -- 6. SAMPLE PURCHASE ORDERS
 -- ============================================
-INSERT INTO purchases (po_number, supplier_id, order_date, expected_delivery_date, status, total_amount, received_date, received_by, approved_by, approved_date) VALUES
-('PO-2026-001', 1, '2026-01-05', '2026-01-10', 'received', 250000.00, '2026-01-09 10:30:00', 2, 1, '2026-01-05 14:00:00'),
-('PO-2026-002', 2, '2026-01-07', '2026-01-12', 'approved', 180000.00, NULL, NULL, 1, '2026-01-07 16:00:00'),
-('PO-2026-003', 3, '2026-01-08', '2026-01-15', 'draft', 95000.00, NULL, NULL, NULL, NULL);
+INSERT INTO purchases (po_number, supplier_id, order_date, expected_delivery_date, status, total_amount, received_date, received_by, approved_by, approved_date, auto_receive) VALUES
+('PO-2026-001', 1, '2026-01-05', '2026-01-10', 'received', 250000.00, '2026-01-09 10:30:00', 2, 1, '2026-01-05 14:00:00', TRUE),
+('PO-2026-002', 2, '2026-01-07', '2026-01-12', 'approved', 210000.00, NULL, NULL, 1, '2026-01-07 16:00:00', TRUE),
+('PO-2026-003', 3, '2026-01-08', '2026-01-15', 'draft', 95000.00, NULL, NULL, NULL, NULL, FALSE);
 
 -- Purchase Items for PO-2026-001 (received)
 INSERT INTO purchase_items (purchase_id, product_id, quantity, unit_price, total_price) VALUES
@@ -99,58 +99,119 @@ INSERT INTO purchase_items (purchase_id, product_id, quantity, unit_price, total
 INSERT INTO purchase_items (purchase_id, product_id, quantity, unit_price, total_price) VALUES
 (2, 2, 15, 14000.00, 210000.00);
 
--- ============================================
--- 7. SAMPLE ONLINE SALES
--- ============================================
-INSERT INTO online_sales (order_number, customer_id, order_date, status, payment_status, payment_method, subtotal, discount_amount, total_amount, shipping_address, processed_by, processed_date) VALUES
-('ONL-2026-001', 4, '2026-01-10 09:15:00', 'delivered', 'paid', 'card', 36000.00, 3600.00, 32400.00, '321 Customer Rd, Colombo', 2, '2026-01-10 10:00:00'),
-('ONL-2026-002', 5, '2026-01-11 14:30:00', 'processing', 'paid', 'card', 12500.00, 1250.00, 11250.00, '654 Buyer St, Colombo', 2, '2026-01-11 15:00:00'),
-('ONL-2026-003', 4, '2026-01-12 11:00:00', 'pending', 'unpaid', NULL, 28000.00, 0.00, 28000.00, '321 Customer Rd, Colombo', NULL, NULL);
+-- Purchase Items for PO-2026-003 (draft)
+INSERT INTO purchase_items (purchase_id, product_id, quantity, unit_price, total_price) VALUES
+(3, 3, 10, 9500.00, 95000.00);
 
--- Sale Items for online sales
-INSERT INTO sale_items (sale_type, sale_id, product_id, quantity, unit_price, discount_amount, total_price) VALUES
-('online', 1, 1, 2, 18000.00, 3600.00, 32400.00),
-('online', 2, 5, 1, 12500.00, 1250.00, 11250.00),
-('online', 3, 2, 1, 20000.00, 0.00, 20000.00),
-('online', 3, 8, 1, 6500.00, 0.00, 6500.00);
+-- Purchase Items for PO-2026-003 (draft)
+INSERT INTO purchase_items (purchase_id, product_id, quantity, unit_price, total_price) VALUES
+(3, 3, 10, 9500.00, 95000.00);
 
 -- ============================================
--- 8. SAMPLE OTC SALES
+-- 7. PRODUCT BATCHES (From received purchase orders + Initial Stock)
 -- ============================================
-INSERT INTO otc_sales (invoice_number, sales_staff_id, sale_date, customer_name, customer_phone, payment_method, subtotal, discount_amount, total_amount, amount_paid, change_amount) VALUES
-('INV-2026-001', 2, '2026-01-10 10:30:00', 'Walk-in Customer 1', '0771234567', 'cash', 14000.00, 0.00, 14000.00, 15000.00, 1000.00),
-('INV-2026-002', 3, '2026-01-10 14:00:00', 'Walk-in Customer 2', '0772345678', 'card', 27000.00, 1350.00, 25650.00, 25650.00, 0.00),
-('INV-2026-003', 2, '2026-01-11 09:00:00', 'Walk-in Customer 3', '0773456789', 'cash', 13000.00, 0.00, 13000.00, 13000.00, 0.00),
-('INV-2026-004', 3, '2026-01-11 16:30:00', NULL, NULL, 'cash', 8400.00, 0.00, 8400.00, 8400.00, 0.00),
-('INV-2026-005', 2, '2026-01-12 11:15:00', 'Walk-in Customer 4', '0774567890', 'bank_transfer', 15000.00, 0.00, 15000.00, 15000.00, 0.00);
+-- Batch from received PO-2026-001
+INSERT INTO product_batches (product_id, supplier_id, po_id, batch_number, quantity_received, quantity_remaining, unit_cost, received_date) VALUES
+(1, 1, 1, 'BATCH-2026-001', 20, 17, 12500.00, '2026-01-09 10:30:00');
 
--- Sale Items for OTC sales
-INSERT INTO sale_items (sale_type, sale_id, product_id, quantity, unit_price, discount_amount, total_price) VALUES
-('otc', 1, 3, 1, 14000.00, 0.00, 14000.00),
-('otc', 2, 2, 1, 20000.00, 1000.00, 19000.00),
-('otc', 2, 8, 1, 6500.00, 325.00, 6175.00),
-('otc', 3, 5, 1, 12500.00, 0.00, 12500.00),
-('otc', 4, 8, 1, 6500.00, 0.00, 6500.00),
-('otc', 4, 12, 1, 1500.00, 0.00, 1500.00),
-('otc', 5, 7, 1, 15000.00, 0.00, 15000.00);
+-- Initial stock batches (existing inventory before system implementation)
+INSERT INTO product_batches (product_id, supplier_id, po_id, batch_number, quantity_received, quantity_remaining, unit_cost, received_date) VALUES
+-- Tires
+(2, 2, NULL, 'INIT-TIRE-002', 34, 34, 14000.00, '2025-12-01 10:00:00'),
+(3, 2, NULL, 'INIT-TIRE-003', 27, 27, 9500.00, '2025-12-05 10:00:00'),
+(4, 1, NULL, 'INIT-TIRE-004', 18, 18, 16000.00, '2025-12-10 10:00:00'),
+-- Batteries
+(5, 4, NULL, 'INIT-BATT-005', 23, 23, 8500.00, '2025-11-20 10:00:00'),
+(6, 4, NULL, 'INIT-BATT-006', 20, 20, 9000.00, '2025-11-25 10:00:00'),
+(7, 4, NULL, 'INIT-BATT-007', 15, 15, 10000.00, '2025-12-01 10:00:00'),
+-- Engine Oil
+(8, 5, NULL, 'INIT-OIL-008', 58, 58, 4500.00, '2025-12-15 10:00:00'),
+(9, 5, NULL, 'INIT-OIL-009', 55, 55, 4800.00, '2025-12-15 10:00:00'),
+(10, 5, NULL, 'INIT-OIL-010', 50, 50, 5000.00, '2025-12-15 10:00:00'),
+-- Brake Pads
+(11, 3, NULL, 'INIT-BRAKE-011', 30, 30, 3500.00, '2025-11-30 10:00:00'),
+(12, 3, NULL, 'INIT-BRAKE-012', 25, 25, 3800.00, '2025-11-30 10:00:00'),
+-- Air Filters
+(13, 3, NULL, 'INIT-FILT-013', 75, 75, 850.00, '2025-12-20 10:00:00'),
+(14, 3, NULL, 'INIT-FILT-014', 20, 20, 4500.00, '2025-12-20 10:00:00'),
+-- Spark Plugs
+(15, 3, NULL, 'INIT-SPARK-015', 39, 39, 2800.00, '2025-12-10 10:00:00'),
+(16, 3, NULL, 'INIT-SPARK-016', 35, 35, 3200.00, '2025-12-10 10:00:00'),
+-- Wipers
+(17, 3, NULL, 'INIT-WIPER-017', 50, 50, 1800.00, '2025-12-12 10:00:00'),
+(18, 3, NULL, 'INIT-WIPER-018', 45, 45, 1500.00, '2025-12-12 10:00:00'),
+-- Coolants
+(19, 5, NULL, 'INIT-COOL-019', 40, 40, 1200.00, '2025-12-18 10:00:00'),
+(20, 5, NULL, 'INIT-COOL-020', 35, 35, 1300.00, '2025-12-18 10:00:00');
 
 -- ============================================
--- 9. STOCK LOGS (Audit trail)
+-- 8. UNIFIED SALES (POS + Online)
 -- ============================================
-INSERT INTO stock_logs (product_id, transaction_type, reference_id, quantity_change, quantity_before, quantity_after, performed_by) VALUES
--- Purchase received
-(1, 'purchase', 1, 20, 25, 45, 2),
--- Online sales
-(1, 'online_sale', 1, -2, 45, 43, 2),
-(5, 'online_sale', 2, -1, 26, 25, 2),
--- OTC sales
-(3, 'otc_sale', 1, -1, 29, 28, 2),
-(2, 'otc_sale', 2, -1, 36, 35, 3),
-(8, 'otc_sale', 2, -1, 61, 60, 3),
-(5, 'otc_sale', 3, -1, 25, 24, 2);
+-- POS Sales (channel='pos')
+INSERT INTO sales (customer_id, channel, sale_date, subtotal, discount, total_amount, payment_method, payment_status, status, created_by, notes) VALUES
+(NULL, 'pos', '2026-01-10 10:30:00', 14000.00, 0.00, 14000.00, 'cash', 'completed', 'completed', 2, 'Walk-in Customer 1 - 0771234567'),
+(NULL, 'pos', '2026-01-10 14:00:00', 27000.00, 1350.00, 25650.00, 'card', 'completed', 'completed', 3, 'Walk-in Customer 2 - 0772345678'),
+(NULL, 'pos', '2026-01-11 09:00:00', 12500.00, 0.00, 12500.00, 'cash', 'completed', 'completed', 2, NULL),
+(NULL, 'pos', '2026-01-11 16:30:00', 10700.00, 0.00, 10700.00, 'cash', 'completed', 'completed', 3, NULL);
+
+-- Online Sales (channel='online')
+INSERT INTO sales (customer_id, channel, sale_date, subtotal, discount, total_amount, payment_method, payment_status, status, created_by, notes) VALUES
+(4, 'online', '2026-01-10 09:15:00', 36000.00, 3600.00, 32400.00, 'card', 'completed', 'completed', 2, NULL),
+(5, 'online', '2026-01-11 14:30:00', 12500.00, 0.00, 12500.00, 'card', 'completed', 'completed', 2, NULL),
+(4, 'online', '2026-01-12 11:00:00', 26500.00, 0.00, 26500.00, NULL, 'pending', 'reserved', NULL, NULL);
 
 -- ============================================
--- 10. LOW STOCK ALERTS (some products below reorder level)
+-- 9. SALES ITEMS (With batch traceability)
+-- ============================================
+-- Sale #1 (POS)
+INSERT INTO sales_items (sale_id, product_id, batch_id, quantity, unit_price, subtotal) VALUES
+(1, 3, NULL, 1, 14000.00, 14000.00);
+
+-- Sale #2 (POS)
+INSERT INTO sales_items (sale_id, product_id, batch_id, quantity, unit_price, subtotal) VALUES
+(2, 2, NULL, 1, 20000.00, 20000.00),
+(2, 8, NULL, 1, 6500.00, 6500.00);
+
+-- Sale #3 (POS)
+INSERT INTO sales_items (sale_id, product_id, batch_id, quantity, unit_price, subtotal) VALUES
+(3, 5, NULL, 1, 12500.00, 12500.00);
+
+-- Sale #4 (POS)
+INSERT INTO sales_items (sale_id, product_id, batch_id, quantity, unit_price, subtotal) VALUES
+(4, 8, NULL, 1, 6500.00, 6500.00),
+(4, 14, NULL, 1, 4200.00, 4200.00);
+
+-- Sale #5 (Online) - Links to batch
+INSERT INTO sales_items (sale_id, product_id, batch_id, quantity, unit_price, subtotal) VALUES
+(5, 1, 1, 2, 18000.00, 36000.00);
+
+-- Sale #6 (Online)
+INSERT INTO sales_items (sale_id, product_id, batch_id, quantity, unit_price, subtotal) VALUES
+(6, 5, NULL, 1, 12500.00, 12500.00);
+
+-- Sale #7 (Online)
+INSERT INTO sales_items (sale_id, product_id, batch_id, quantity, unit_price, subtotal) VALUES
+(7, 2, NULL, 1, 20000.00, 20000.00),
+(7, 8, NULL, 1, 6500.00, 6500.00);
+
+-- ============================================
+-- 10. STOCK MOVEMENTS (Audit trail)
+-- ============================================
+-- Purchase received (batch created)
+INSERT INTO stock_movements (product_id, batch_id, movement_type, reference_type, reference_id, quantity, performed_by, notes) VALUES
+(1, 1, 'purchase', 'purchase', 1, 20, 2, 'PO-2026-001 received');
+
+-- Sales (stock deductions)
+INSERT INTO stock_movements (product_id, batch_id, movement_type, reference_type, reference_id, quantity, performed_by) VALUES
+(1, 1, 'sale', 'sale', 5, -2, 2),
+(3, NULL, 'sale', 'sale', 1, -1, 2),
+(2, NULL, 'sale', 'sale', 2, -1, 3),
+(8, NULL, 'sale', 'sale', 2, -1, 3),
+(5, NULL, 'sale', 'sale', 3, -1, 2),
+(5, NULL, 'sale', 'sale', 6, -1, 2);
+
+-- ============================================
+-- 11. LOW STOCK ALERTS (some products below reorder level)
 -- ============================================
 -- These will be auto-generated by trigger, but adding some manually for demo
 INSERT INTO low_stock_alerts (product_id, current_stock, reorder_level, alert_level, is_acknowledged) VALUES

@@ -3,6 +3,7 @@ const { AppError } = require('../middleware/errorHandler');
 const { generateOrderNumber, getPaginationParams } = require('../utils/helpers');
 const { PO_STATUS, TRANSACTION_TYPES } = require('../config/constants');
 const stockService = require('./stockService');
+const inventoryService = require('./inventoryService');
 
 class PurchaseService {
   /**
@@ -76,7 +77,7 @@ class PurchaseService {
   }
 
   /**
-   * Receive goods (update stock)
+   * Receive goods (mark as received - may auto-create batches based on auto_receive flag)
    */
   async receiveGoods(id, userId) {
     const purchase = await this.getPurchaseById(id);
@@ -89,25 +90,37 @@ class PurchaseService {
     try {
       await connection.beginTransaction();
 
-      // Get purchase items
-      const [items] = await connection.query(
-        'SELECT * FROM purchase_items WHERE purchase_id = ?',
-        [id]
-      );
+      // Check auto_receive flag (default true)
+      const auto_receive = purchase.auto_receive !== undefined ? purchase.auto_receive : true;
 
-      // Update stock for each item
-      const stockUpdates = items.map(item => ({
-        product_id: item.product_id,
-        quantity_change: item.quantity
-      }));
+      if (auto_receive) {
+        // Auto-create batches for all items
+        const [items] = await connection.query(
+          'SELECT * FROM purchase_items WHERE purchase_id = ?',
+          [id]
+        );
 
-      // Update stock using stock service
-      await stockService.updateStockBatch(
-        stockUpdates,
-        TRANSACTION_TYPES.PURCHASE,
-        id,
-        userId
-      );
+        for (const item of items) {
+          // Create batch using inventoryService
+          await inventoryService.createBatchFromPurchase(
+            id,
+            item.product_id,
+            purchase.supplier_id,
+            item.quantity,
+            item.unit_price,
+            new Date()
+          );
+
+          // Update product purchase price
+          await connection.query(
+            'UPDATE products SET purchase_price = ? WHERE id = ?',
+            [item.unit_price, item.product_id]
+          );
+        }
+      } else {
+        // Manual receive - just mark as ready for confirmation
+        // User will call confirmReceive endpoint to actually create batches
+      }
 
       // Update purchase status
       await connection.query(
@@ -117,8 +130,46 @@ class PurchaseService {
         [PO_STATUS.RECEIVED, userId, id]
       );
 
-      // Update product purchase prices
+      await connection.commit();
+      return await this.getPurchaseById(id);
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  }
+
+  /**
+   * Confirm manual receive and create batches
+   * Used when auto_receive = false
+   */
+  async confirmReceive(id, items, userId) {
+    const purchase = await this.getPurchaseById(id);
+
+    if (purchase.status !== PO_STATUS.RECEIVED) {
+      throw new AppError('Purchase order must be marked as received first', 400);
+    }
+
+    const connection = await pool.getConnection();
+    try {
+      await connection.beginTransaction();
+
+      // Create batches based on confirmed quantities
       for (const item of items) {
+        const quantity = item.quantity_confirmed || item.quantity;
+
+        // Create batch
+        await inventoryService.createBatchFromPurchase(
+          id,
+          item.product_id,
+          purchase.supplier_id,
+          quantity,
+          item.unit_price,
+          new Date()
+        );
+
+        // Update product purchase price
         await connection.query(
           'UPDATE products SET purchase_price = ? WHERE id = ?',
           [item.unit_price, item.product_id]
