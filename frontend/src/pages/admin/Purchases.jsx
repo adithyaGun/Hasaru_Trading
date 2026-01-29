@@ -52,8 +52,9 @@ const AdminPurchases = () => {
   const [purchaseItems, setPurchaseItems] = useState([]);
   const [stats, setStats] = useState({
     total: 0,
-    pending: 0,
-    completed: 0,
+    draft: 0,
+    approved: 0,
+    received: 0,
     cancelled: 0
   });
 
@@ -85,7 +86,7 @@ const AdminPurchases = () => {
       const response = await api.get('/suppliers');
       // Backend returns { success, message, data: { suppliers, pagination } }
       const suppliersData = response.data?.data?.suppliers || [];
-      setSuppliers(suppliersData.filter(s => s.status === 'active'));
+      setSuppliers(suppliersData.filter(s => s.is_active === 1 || s.is_active === true));
     } catch (error) {
       console.error('Error fetching suppliers:', error);
     }
@@ -104,14 +105,15 @@ const AdminPurchases = () => {
 
   const calculateStats = (purchasesData) => {
     if (!Array.isArray(purchasesData)) {
-      setStats({ total: 0, pending: 0, completed: 0, cancelled: 0 });
+      setStats({ total: 0, draft: 0, approved: 0, received: 0, cancelled: 0 });
       return;
     }
     const total = purchasesData.length;
-    const pending = purchasesData.filter(p => p.status === 'pending').length;
-    const completed = purchasesData.filter(p => p.status === 'completed').length;
+    const draft = purchasesData.filter(p => p.status === 'draft').length;
+    const approved = purchasesData.filter(p => p.status === 'approved').length;
+    const received = purchasesData.filter(p => p.status === 'received').length;
     const cancelled = purchasesData.filter(p => p.status === 'cancelled').length;
-    setStats({ total, pending, completed, cancelled });
+    setStats({ total, draft, approved, received, cancelled });
   };
 
   const handleAdd = () => {
@@ -121,34 +123,43 @@ const AdminPurchases = () => {
     setModalVisible(true);
   };
 
-  const handleEdit = (record) => {
+  const handleEdit = async (record) => {
     setEditingPurchase(record);
     form.setFieldsValue({
       supplier_id: record.supplier_id,
-      order_date: record.order_date,
-      expected_date: record.expected_date,
+      order_date: record.order_date?.split('T')[0],
+      expected_date: record.expected_delivery_date?.split('T')[0],
+      notes: record.notes,
       status: record.status,
-      notes: record.notes
+      auto_receive: record.auto_receive !== undefined ? record.auto_receive : true
     });
     // Load purchase items
-    fetchPurchaseItems(record.id);
+    await fetchPurchaseItems(record.id);
     setModalVisible(true);
   };
 
   const fetchPurchaseItems = async (purchaseId) => {
     try {
-      const response = await api.get(`/purchases/${purchaseId}/items`);
-      setPurchaseItems(response.data);
+      const response = await api.get(`/purchases/${purchaseId}`);
+      const purchaseData = response.data?.data;
+      if (purchaseData && purchaseData.items) {
+        setPurchaseItems(purchaseData.items.map(item => ({
+          product_id: item.product_id,
+          quantity: item.quantity,
+          unit_price: parseFloat(item.unit_price)
+        })));
+      }
     } catch (error) {
       console.error('Error fetching purchase items:', error);
+      message.error('Failed to load purchase items');
     }
   };
 
   const handleView = async (record) => {
-    setViewingPurchase(record);
     try {
-      const response = await api.get(`/purchases/${record.id}/items`);
-      setViewingPurchase({ ...record, items: response.data });
+      const response = await api.get(`/purchases/${record.id}`);
+      const purchaseData = response.data?.data || record;
+      setViewingPurchase(purchaseData);
       setDetailsModalVisible(true);
     } catch (error) {
       message.error('Failed to load purchase details');
@@ -169,11 +180,17 @@ const AdminPurchases = () => {
 
   const handleUpdateStatus = async (id, status) => {
     try {
-      await api.put(`/purchases/${id}`, { status });
-      message.success(`Purchase order ${status}`);
+      if (status === 'completed') {
+        // Call the receive endpoint which updates stock
+        await api.put(`/purchases/${id}/receive`);
+        message.success('Purchase order received and stock updated successfully');
+      } else if (status === 'cancelled') {
+        await api.put(`/purchases/${id}`, { status: 'cancelled' });
+        message.success('Purchase order cancelled');
+      }
       fetchPurchases();
     } catch (error) {
-      message.error('Failed to update status');
+      message.error(error.response?.data?.message || 'Failed to update status');
       console.error('Error updating status:', error);
     }
   };
@@ -200,7 +217,7 @@ const AdminPurchases = () => {
     if (field === 'product_id') {
       const product = products.find(p => p.id === value);
       if (product) {
-        newItems[index].unit_price = parseFloat(product.cost_price);
+        newItems[index].unit_price = parseFloat(product.purchase_price || 0);
       }
     }
     
@@ -209,7 +226,9 @@ const AdminPurchases = () => {
 
   const calculateTotal = () => {
     return purchaseItems.reduce((sum, item) => {
-      return sum + (item.quantity * item.unit_price);
+      const quantity = parseFloat(item.quantity) || 0;
+      const unitPrice = parseFloat(item.unit_price) || 0;
+      return sum + (quantity * unitPrice);
     }, 0);
   };
 
@@ -220,7 +239,11 @@ const AdminPurchases = () => {
     }
 
     const purchaseData = {
-      ...values,
+      supplier_id: values.supplier_id,
+      order_date: values.order_date,
+      expected_delivery_date: values.expected_date,
+      notes: values.notes,
+      auto_receive: values.auto_receive !== undefined ? values.auto_receive : true,
       items: purchaseItems,
       total_amount: calculateTotal()
     };
@@ -245,8 +268,9 @@ const AdminPurchases = () => {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'pending': return 'orange';
-      case 'completed': return 'green';
+      case 'draft': return 'default';
+      case 'approved': return 'blue';
+      case 'received': return 'green';
       case 'cancelled': return 'red';
       default: return 'default';
     }
@@ -317,7 +341,7 @@ const AdminPurchases = () => {
           >
             View
           </Button>
-          {record.status === 'pending' && (
+          {(record.status === 'draft' || record.status === 'approved') && (
             <>
               <Button 
                 type="link" 
@@ -326,29 +350,54 @@ const AdminPurchases = () => {
               >
                 Edit
               </Button>
-              <Popconfirm
-                title="Mark this order as completed?"
-                onConfirm={() => handleUpdateStatus(record.id, 'completed')}
-                okText="Yes"
-                cancelText="No"
-              >
-                <Button type="link" icon={<CheckCircleOutlined />} style={{ color: '#52c41a' }}>
-                  Complete
-                </Button>
-              </Popconfirm>
-              <Popconfirm
-                title="Cancel this order?"
-                onConfirm={() => handleUpdateStatus(record.id, 'cancelled')}
-                okText="Yes"
-                cancelText="No"
-              >
-                <Button type="link" danger icon={<CloseCircleOutlined />}>
-                  Cancel
-                </Button>
-              </Popconfirm>
+              {record.status === 'approved' && (
+                <Popconfirm
+                  title="Receive goods and update stock?"
+                  description="This will update product stock quantities."
+                  onConfirm={() => handleUpdateStatus(record.id, 'completed')}
+                  okText="Yes"
+                  cancelText="No"
+                >
+                  <Button type="link" icon={<CheckCircleOutlined />} style={{ color: '#52c41a' }}>
+                    Receive
+                  </Button>
+                </Popconfirm>
+              )}
+              {record.status === 'draft' && (
+                <Popconfirm
+                  title="Approve this purchase order?"
+                  onConfirm={async () => {
+                    try {
+                      await api.put(`/purchases/${record.id}/approve`);
+                      message.success('Purchase order approved');
+                      fetchPurchases();
+                    } catch (error) {
+                      message.error('Failed to approve purchase order');
+                    }
+                  }}
+                  okText="Yes"
+                  cancelText="No"
+                >
+                  <Button type="link" icon={<CheckCircleOutlined />} style={{ color: '#1890ff' }}>
+                    Approve
+                  </Button>
+                </Popconfirm>
+              )}
+              {record.status !== 'received' && record.status !== 'cancelled' && (
+                <Popconfirm
+                  title="Cancel this order?"
+                  onConfirm={() => handleUpdateStatus(record.id, 'cancelled')}
+                  okText="Yes"
+                  cancelText="No"
+                >
+                  <Button type="link" danger icon={<CloseCircleOutlined />}>
+                    Cancel
+                  </Button>
+                </Popconfirm>
+              )}
             </>
           )}
-          {record.status !== 'pending' && (
+          {(record.status === 'draft' || record.status === 'cancelled') && (
             <Popconfirm
               title="Are you sure you want to delete this purchase order?"
               onConfirm={() => handleDelete(record.id)}
@@ -382,17 +431,26 @@ const AdminPurchases = () => {
           <Col xs={24} sm={12} lg={6}>
             <Card>
               <Statistic 
-                title="Pending" 
-                value={stats.pending}
-                valueStyle={{ color: '#faad14' }}
+                title="Draft" 
+                value={stats.draft}
+                valueStyle={{ color: '#8c8c8c' }}
               />
             </Card>
           </Col>
           <Col xs={24} sm={12} lg={6}>
             <Card>
               <Statistic 
-                title="Completed" 
-                value={stats.completed}
+                title="Approved" 
+                value={stats.approved}
+                valueStyle={{ color: '#1890ff' }}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} sm={12} lg={6}>
+            <Card>
+              <Statistic 
+                title="Received" 
+                value={stats.received}
                 valueStyle={{ color: '#52c41a' }}
               />
             </Card>
@@ -428,8 +486,9 @@ const AdminPurchases = () => {
                 onChange={setFilterStatus}
               >
                 <Option value="all">All Status</Option>
-                <Option value="pending">Pending</Option>
-                <Option value="completed">Completed</Option>
+                <Option value="draft">Draft</Option>
+                <Option value="approved">Approved</Option>
+                <Option value="received">Received</Option>
                 <Option value="cancelled">Cancelled</Option>
               </Select>
             </Col>
@@ -511,11 +570,12 @@ const AdminPurchases = () => {
                 name="status"
                 label="Status"
                 rules={[{ required: true, message: 'Please select status' }]}
-                initialValue="pending"
+                initialValue="draft"
               >
                 <Select>
-                  <Option value="pending">Pending</Option>
-                  <Option value="completed">Completed</Option>
+                  <Option value="draft">Draft</Option>
+                  <Option value="approved">Approved</Option>
+                  <Option value="received">Received</Option>
                   <Option value="cancelled">Cancelled</Option>
                 </Select>
               </Form.Item>
@@ -580,7 +640,7 @@ const AdminPurchases = () => {
                 >
                   {products.map(product => (
                     <Option key={product.id} value={product.id}>
-                      {product.name} - Rs. {product.cost_price}
+                      {product.name} - Rs. {parseFloat(product.purchase_price || 0).toFixed(2)}
                     </Option>
                   ))}
                 </Select>
