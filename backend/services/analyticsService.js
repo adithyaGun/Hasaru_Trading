@@ -10,6 +10,9 @@ class AnalyticsService {
       { startDate, endDate } : 
       getDateRange(period);
 
+    // Convert limit to integer to avoid SQL syntax error
+    const limitInt = parseInt(limit, 10) || 10;
+
     const [data] = await pool.query(
       `SELECT 
         p.id,
@@ -18,24 +21,17 @@ class AnalyticsService {
         p.category,
         p.brand,
         SUM(si.quantity) as total_quantity_sold,
-        SUM(si.total_price) as total_revenue,
+        SUM(si.subtotal) as total_revenue,
         COUNT(DISTINCT si.id) as number_of_transactions
-       FROM sale_items si
+       FROM sales_items si
        JOIN products p ON si.product_id = p.id
-       WHERE (
-         (si.sale_type = 'online' AND si.sale_id IN (
-           SELECT id FROM online_sales 
-           WHERE status != 'cancelled' AND order_date BETWEEN ? AND ?
-         )) OR
-         (si.sale_type = 'otc' AND si.sale_id IN (
-           SELECT id FROM otc_sales 
-           WHERE sale_date BETWEEN ? AND ?
-         ))
-       )
+       JOIN sales s ON si.sale_id = s.id
+       WHERE s.status != 'cancelled' 
+       AND DATE(s.sale_date) BETWEEN ? AND ?
        GROUP BY p.id, p.name, p.sku, p.category, p.brand
        ORDER BY total_quantity_sold DESC
        LIMIT ?`,
-      [dateRange.startDate, dateRange.endDate, dateRange.startDate, dateRange.endDate, limit]
+      [dateRange.startDate, dateRange.endDate, limitInt]
     );
 
     return {
@@ -64,6 +60,9 @@ class AnalyticsService {
       { startDate, endDate } : 
       getDateRange(period);
 
+    // Convert limit to integer to avoid SQL syntax error
+    const limitInt = parseInt(limit, 10) || 20;
+
     const [data] = await pool.query(
       `SELECT 
         p.id,
@@ -75,18 +74,11 @@ class AnalyticsService {
         SUM(si.quantity) as quantity_sold,
         COUNT(DISTINCT si.id) as sales_frequency,
         (SUM(si.quantity) / DATEDIFF(?, ?)) as daily_average_sales
-       FROM sale_items si
+       FROM sales_items si
        JOIN products p ON si.product_id = p.id
-       WHERE (
-         (si.sale_type = 'online' AND si.sale_id IN (
-           SELECT id FROM online_sales 
-           WHERE status != 'cancelled' AND order_date BETWEEN ? AND ?
-         )) OR
-         (si.sale_type = 'otc' AND si.sale_id IN (
-           SELECT id FROM otc_sales 
-           WHERE sale_date BETWEEN ? AND ?
-         ))
-       )
+       JOIN sales s ON si.sale_id = s.id
+       WHERE s.status != 'cancelled' 
+       AND DATE(s.sale_date) BETWEEN ? AND ?
        GROUP BY p.id, p.name, p.sku, p.category, p.stock_quantity, p.reorder_level
        HAVING quantity_sold > 0
        ORDER BY quantity_sold DESC, sales_frequency DESC
@@ -96,9 +88,7 @@ class AnalyticsService {
         dateRange.startDate,
         dateRange.startDate, 
         dateRange.endDate, 
-        dateRange.startDate, 
-        dateRange.endDate, 
-        limit
+        limitInt
       ]
     );
 
@@ -129,6 +119,9 @@ class AnalyticsService {
       { startDate, endDate } : 
       getDateRange(period);
 
+    // Convert limit to integer to avoid SQL syntax error
+    const limitInt = parseInt(limit, 10) || 20;
+
     const [data] = await pool.query(
       `SELECT 
         p.id,
@@ -142,23 +135,14 @@ class AnalyticsService {
         COALESCE(COUNT(DISTINCT si.id), 0) as sales_frequency,
         (p.stock_quantity * p.purchase_price) as stock_value
        FROM products p
-       LEFT JOIN sale_items si ON p.id = si.product_id
-       AND (
-         (si.sale_type = 'online' AND si.sale_id IN (
-           SELECT id FROM online_sales 
-           WHERE status != 'cancelled' AND order_date BETWEEN ? AND ?
-         )) OR
-         (si.sale_type = 'otc' AND si.sale_id IN (
-           SELECT id FROM otc_sales 
-           WHERE sale_date BETWEEN ? AND ?
-         ))
-       )
+       LEFT JOIN sales_items si ON p.id = si.product_id
+       LEFT JOIN sales s ON si.sale_id = s.id AND s.status != 'cancelled' AND DATE(s.sale_date) BETWEEN ? AND ?
        WHERE p.is_active = TRUE
        GROUP BY p.id, p.name, p.sku, p.category, p.stock_quantity, p.reorder_level, p.purchase_price
        HAVING quantity_sold <= 3
        ORDER BY quantity_sold ASC, p.stock_quantity DESC
        LIMIT ?`,
-      [dateRange.startDate, dateRange.endDate, dateRange.startDate, dateRange.endDate, limit]
+      [dateRange.startDate, dateRange.endDate, limitInt]
     );
 
     return {
@@ -195,15 +179,15 @@ class AnalyticsService {
         u.id as customer_id,
         u.name as customer_name,
         u.email,
-        COUNT(o.id) as total_orders,
-        SUM(o.total_amount) as total_spent,
-        AVG(o.total_amount) as average_order_value,
-        MAX(o.order_date) as last_order_date
+        COUNT(s.id) as total_orders,
+        SUM(s.total_amount) as total_spent,
+        AVG(s.total_amount) as average_order_value,
+        MAX(s.sale_date) as last_order_date
        FROM users u
-       JOIN online_sales o ON u.id = o.customer_id
+       JOIN sales s ON u.id = s.customer_id
        WHERE u.role = 'customer'
-       AND o.status != 'cancelled'
-       AND o.order_date BETWEEN ? AND ?
+       AND s.status != 'cancelled'
+       AND DATE(s.sale_date) BETWEEN ? AND ?
        GROUP BY u.id, u.name, u.email
        ORDER BY total_spent DESC
        LIMIT 20`,
@@ -236,19 +220,12 @@ class AnalyticsService {
 
     const [salesData] = await pool.query(
       `SELECT SUM(si.quantity * p.purchase_price) as cost_of_goods_sold
-       FROM sale_items si
+       FROM sales_items si
        JOIN products p ON si.product_id = p.id
-       WHERE (
-         (si.sale_type = 'online' AND si.sale_id IN (
-           SELECT id FROM online_sales 
-           WHERE status != 'cancelled' AND order_date BETWEEN ? AND ?
-         )) OR
-         (si.sale_type = 'otc' AND si.sale_id IN (
-           SELECT id FROM otc_sales 
-           WHERE sale_date BETWEEN ? AND ?
-         ))
-       )`,
-      [dateRange.startDate, dateRange.endDate, dateRange.startDate, dateRange.endDate]
+       JOIN sales s ON si.sale_id = s.id
+       WHERE s.status != 'cancelled' 
+       AND DATE(s.sale_date) BETWEEN ? AND ?`,
+      [dateRange.startDate, dateRange.endDate]
     );
 
     const [inventoryData] = await pool.query(

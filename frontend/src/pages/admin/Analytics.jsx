@@ -5,463 +5,431 @@ import {
   Row, 
   Col, 
   Statistic, 
-  Progress,
   Table,
   Tag,
   Space,
   Button,
-  message
+  message,
+  DatePicker
 } from 'antd';
 import {
-  ArrowUpOutlined,
-  ArrowDownOutlined,
   ReloadOutlined,
-  DownloadOutlined
+  DownloadOutlined,
+  RiseOutlined,
+  FallOutlined,
+  SwapOutlined
 } from '@ant-design/icons';
 import {
-  AreaChart,
-  Area,
   BarChart,
   Bar,
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   Legend,
   ResponsiveContainer,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  Radar
+  PieChart,
+  Pie,
+  Cell
 } from 'recharts';
-import api from '../../api/axios';
+import { analyticsAPI } from '../../api';
+import dayjs from 'dayjs';
+
+const { RangePicker } = DatePicker;
+
+const COLORS = ['#dc2626', '#2563eb', '#059669', '#ea580c', '#8b5cf6', '#eab308'];
 
 const AdminAnalytics = () => {
   const [loading, setLoading] = useState(false);
-  const [revenueData, setRevenueData] = useState([]);
-  const [customerData, setCustomerData] = useState([]);
-  const [inventoryHealth, setInventoryHealth] = useState([]);
-  const [performanceMetrics, setPerformanceMetrics] = useState([]);
-  const [lowStockProducts, setLowStockProducts] = useState([]);
-  const [kpis, setKpis] = useState({
-    avgOrderValue: 0,
-    customerRetention: 0,
-    inventoryTurnover: 0,
-    profitMargin: 0
+  const [topSellingProducts, setTopSellingProducts] = useState([]);
+  const [fastMovingItems, setFastMovingItems] = useState([]);
+  const [slowMovingItems, setSlowMovingItems] = useState([]);
+  const [inventoryTurnover, setInventoryTurnover] = useState([]);
+  const [dateRange, setDateRange] = useState([dayjs().subtract(30, 'day'), dayjs()]);
+  const [stats, setStats] = useState({
+    totalProducts: 0,
+    avgTurnover: 0,
+    fastMovingCount: 0,
+    slowMovingCount: 0
   });
 
   useEffect(() => {
     fetchAnalytics();
-  }, []);
+  }, [dateRange]);
 
   const fetchAnalytics = async () => {
     setLoading(true);
     try {
-      // Fetch KPIs
-      const kpisResponse = await api.get('/analytics/kpis');
-      const kpisData = kpisResponse.data.data || (typeof kpisResponse.data === 'object' && !Array.isArray(kpisResponse.data) ? kpisResponse.data : null);
-      if (kpisData && !Array.isArray(kpisData)) {
-        setKpis(kpisData);
-      } else {
-        setKpis({
-          avgOrderValue: 367.25,
-          customerRetention: 78.5,
-          inventoryTurnover: 4.2,
-          profitMargin: 32.8
-        });
-      }
+      const startDate = dateRange[0].format('YYYY-MM-DD');
+      const endDate = dateRange[1].format('YYYY-MM-DD');
 
-      // Fetch revenue trend
-      const revenueResponse = await api.get('/analytics/revenue-trend');
-      const revenueData = Array.isArray(revenueResponse.data) ? revenueResponse.data : (revenueResponse.data.data || []);
-      setRevenueData(revenueData.length > 0 ? revenueData : generateMockRevenueData());
+      // Fetch all analytics data in parallel with error handling
+      const [topSellingRes, fastMovingRes, slowMovingRes, turnoverRes] = await Promise.all([
+        analyticsAPI.getTopSelling({ start_date: startDate, end_date: endDate, limit: 10 })
+          .catch(err => {
+            console.error('Top selling error:', err);
+            return { data: { data: { top_selling_products: [] } } };
+          }),
+        analyticsAPI.getFastMoving({ start_date: startDate, end_date: endDate, limit: 10 })
+          .catch(err => {
+            console.error('Fast moving error:', err);
+            return { data: { data: { fast_moving_items: [] } } };
+          }),
+        analyticsAPI.getSlowMoving({ start_date: startDate, end_date: endDate, limit: 10 })
+          .catch(err => {
+            console.error('Slow moving error:', err);
+            return { data: { data: { slow_moving_items: [] } } };
+          }),
+        analyticsAPI.getInventoryTurnover({ start_date: startDate, end_date: endDate })
+          .catch(err => {
+            console.error('Turnover error:', err);
+            return { data: { data: {} } };
+          })
+      ]);
 
-      // Fetch customer analytics
-      const customerResponse = await api.get('/analytics/customer-behavior');
-      const customerData = Array.isArray(customerResponse.data) ? customerResponse.data : (customerResponse.data.data || []);
-      setCustomerData(customerData.length > 0 ? customerData : generateMockCustomerData());
+      // Extract nested data from API responses
+      const topSelling = topSellingRes.data.data?.top_selling_products || [];
+      const fastMoving = fastMovingRes.data.data?.fast_moving_items || [];
+      const slowMoving = slowMovingRes.data.data?.slow_moving_items || [];
+      const turnoverData = turnoverRes.data.data || {};
 
-      // Fetch inventory health
-      const inventoryResponse = await api.get('/analytics/inventory-health');
-      const inventoryData = Array.isArray(inventoryResponse.data) ? inventoryResponse.data : (inventoryResponse.data.data || []);
-      setInventoryHealth(inventoryData.length > 0 ? inventoryData : generateMockInventoryHealth());
+      // Map top selling to match expected format
+      const mappedTopSelling = topSelling.map(item => ({
+        ...item,
+        total_sold: item.total_quantity_sold || 0,
+        total_revenue: item.total_revenue || 0
+      }));
 
-      // Fetch performance metrics
-      const performanceResponse = await api.get('/analytics/performance');
-      const performanceData = Array.isArray(performanceResponse.data) ? performanceResponse.data : (performanceResponse.data.data || []);
-      setPerformanceMetrics(performanceData.length > 0 ? performanceData : generateMockPerformanceMetrics());
+      // Map fast/slow moving to match expected format
+      const mappedFastMoving = fastMoving.map(item => ({
+        ...item,
+        total_sold: parseInt(item.quantity_sold) || 0,
+        days_in_stock: item.sales_frequency || 0,
+        turnover_ratio: parseFloat(item.daily_average_sales) || 0
+      }));
 
-      // Fetch low stock alerts
-      const lowStockResponse = await api.get('/analytics/low-stock');
-      const lowStockData = Array.isArray(lowStockResponse.data) ? lowStockResponse.data : (lowStockResponse.data.data || []);
-      setLowStockProducts(lowStockData.length > 0 ? lowStockData : generateMockLowStock());
+      const mappedSlowMoving = slowMoving.map(item => ({
+        ...item,
+        total_sold: parseInt(item.quantity_sold) || 0,
+        days_in_stock: item.sales_frequency || 0,
+        turnover_ratio: 0
+      }));
 
-      message.success('Analytics data loaded successfully');
+      setTopSellingProducts(mappedTopSelling);
+      setFastMovingItems(mappedFastMoving);
+      setSlowMovingItems(mappedSlowMoving);
+      setInventoryTurnover(turnoverData);
+
+      // Calculate stats
+      const avgTurnover = parseFloat(turnoverData.inventory_turnover_rate) || 0;
+
+      setStats({
+        totalProducts: topSelling.length + fastMoving.length + slowMoving.length,
+        avgTurnover: avgTurnover,
+        fastMovingCount: fastMoving.length,
+        slowMovingCount: slowMoving.length
+      });
     } catch (error) {
       console.error('Error fetching analytics:', error);
-      // Use mock data on error
-      setRevenueData(generateMockRevenueData());
-      setCustomerData(generateMockCustomerData());
-      setInventoryHealth(generateMockInventoryHealth());
-      setPerformanceMetrics(generateMockPerformanceMetrics());
-      setLowStockProducts(generateMockLowStock());
+      message.error('Failed to load analytics data');
     } finally {
       setLoading(false);
     }
   };
 
-  // Mock data generators
-  const generateMockRevenueData = () => {
-    const weeks = ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
-    return weeks.map(week => ({
-      week,
-      revenue: Math.floor(Math.random() * 15000) + 20000,
-      cost: Math.floor(Math.random() * 10000) + 12000,
-      profit: Math.floor(Math.random() * 8000) + 6000
-    }));
-  };
-
-  const generateMockCustomerData = () => {
-    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    return days.map(day => ({
-      day,
-      newCustomers: Math.floor(Math.random() * 20) + 5,
-      returningCustomers: Math.floor(Math.random() * 40) + 15
-    }));
-  };
-
-  const generateMockInventoryHealth = () => {
-    return [
-      { category: 'Tires', inStock: 85, lowStock: 10, outOfStock: 5 },
-      { category: 'Batteries', inStock: 70, lowStock: 20, outOfStock: 10 },
-      { category: 'Engine Parts', inStock: 90, lowStock: 8, outOfStock: 2 },
-      { category: 'Lubricants', inStock: 75, lowStock: 15, outOfStock: 10 }
-    ];
-  };
-
-  const generateMockPerformanceMetrics = () => {
-    return [
-      { metric: 'Sales', score: 85 },
-      { metric: 'Customer Service', score: 92 },
-      { metric: 'Inventory', score: 78 },
-      { metric: 'Marketing', score: 88 },
-      { metric: 'Operations', score: 81 },
-      { metric: 'Quality', score: 94 }
-    ];
-  };
-
-  const generateMockLowStock = () => {
-    return [
-      { id: 1, name: 'Michelin Pilot Sport 4', stock: 5, reorder_level: 20, status: 'critical' },
-      { id: 2, name: 'Bosch S4 Battery', stock: 12, reorder_level: 15, status: 'low' },
-      { id: 3, name: 'NGK Spark Plugs', stock: 8, reorder_level: 25, status: 'critical' },
-      { id: 4, name: 'Castrol Edge 5W-30', stock: 18, reorder_level: 20, status: 'low' }
-    ];
-  };
-
-  const lowStockColumns = [
+  const topSellingColumns = [
+    {
+      title: 'Rank',
+      key: 'rank',
+      width: 60,
+      render: (_, record, index) => (
+        <Tag color={index < 3 ? 'red' : 'default'}>{index + 1}</Tag>
+      )
+    },
     {
       title: 'Product Name',
-      dataIndex: 'name',
-      key: 'name',
+      dataIndex: 'product_name',
+      key: 'product_name',
+      render: (text) => <span style={{ fontWeight: '500' }}>{text}</span>
+    },
+    {
+      title: 'SKU',
+      dataIndex: 'sku',
+      key: 'sku',
+    },
+    {
+      title: 'Units Sold',
+      dataIndex: 'total_sold',
+      key: 'total_sold',
+      render: (value) => <span style={{ fontWeight: 'bold', color: '#dc2626' }}>{value}</span>,
+      sorter: (a, b) => a.total_sold - b.total_sold,
+    },
+    {
+      title: 'Revenue',
+      dataIndex: 'total_revenue',
+      key: 'total_revenue',
+      render: (value) => `Rs. ${parseFloat(value || 0).toFixed(2)}`,
+      sorter: (a, b) => a.total_revenue - b.total_revenue,
+    },
+  ];
+
+  const movementColumns = [
+    {
+      title: 'Product Name',
+      dataIndex: 'product_name',
+      key: 'product_name',
+      render: (text) => <span style={{ fontWeight: '500' }}>{text}</span>
     },
     {
       title: 'Current Stock',
-      dataIndex: 'stock',
-      key: 'stock',
-      render: (stock) => <span style={{ fontWeight: 'bold' }}>{stock}</span>
-    },
-    {
-      title: 'Reorder Level',
-      dataIndex: 'reorder_level',
-      key: 'reorder_level',
-    },
-    {
-      title: 'Status',
-      dataIndex: 'status',
-      key: 'status',
-      render: (status) => (
-        <Tag color={status === 'critical' ? 'red' : 'orange'}>
-          {status?.toUpperCase() || 'N/A'}
+      dataIndex: 'current_stock',
+      key: 'current_stock',
+      render: (stock) => (
+        <Tag color={stock < 10 ? 'red' : stock < 50 ? 'orange' : 'green'}>
+          {stock} units
         </Tag>
-      ),
+      )
     },
     {
-      title: 'Action',
-      key: 'action',
-      render: (_, record) => (
-        <Button type="primary" size="small" style={{ backgroundColor: '#dc2626' }}>
-          Reorder
-        </Button>
-      ),
+      title: 'Sold (Period)',
+      dataIndex: 'total_sold',
+      key: 'total_sold',
+    },
+    {
+      title: 'Sales Frequency',
+      dataIndex: 'days_in_stock',
+      key: 'days_in_stock',
+    },
+    {
+      title: 'Daily Avg',
+      dataIndex: 'turnover_ratio',
+      key: 'turnover_ratio',
+      render: (value) => `${parseFloat(value || 0).toFixed(2)}`,
+      sorter: (a, b) => (a.turnover_ratio || 0) - (b.turnover_ratio || 0),
     },
   ];
+
+  const handleDownload = () => {
+    const csvData = [
+      ['Top Selling Products Report'],
+      [`Period: ${dateRange[0].format('YYYY-MM-DD')} to ${dateRange[1].format('YYYY-MM-DD')}`],
+      [],
+      ['Rank', 'Product Name', 'SKU', 'Units Sold', 'Revenue'],
+      ...topSellingProducts.map((p, i) => [
+        i + 1,
+        p.product_name,
+        p.sku,
+        p.total_sold,
+        `Rs. ${parseFloat(p.total_revenue || 0).toFixed(2)}`
+      ])
+    ].map(row => row.join(',')).join('\n');
+
+    const blob = new Blob([csvData], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `analytics-report-${dayjs().format('YYYY-MM-DD')}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+    message.success('Report downloaded successfully');
+  };
+
+  // Prepare chart data for top selling products
+  const chartData = topSellingProducts.slice(0, 8).map(item => ({
+    name: item.product_name?.substring(0, 20) + '...',
+    fullName: item.product_name,
+    value: parseFloat(item.total_revenue || 0)
+  }));
 
   return (
     <AdminLayout>
       <div className="mb-6">
+        {/* Header */}
         <Row justify="space-between" align="middle" className="mb-6">
           <Col>
+            <h2 style={{ margin: 0, fontSize: '24px', fontWeight: 'bold' }}>Analytics & Insights</h2>
+            <p style={{ margin: '4px 0 0', color: '#666' }}>
+              {dateRange[0].format('MMM D, YYYY')} - {dateRange[1].format('MMM D, YYYY')}
+            </p>
+          </Col>
+          <Col>
             <Space>
-              <Button icon={<ReloadOutlined />} onClick={fetchAnalytics}>
+              <RangePicker 
+                value={dateRange}
+                onChange={(dates) => dates && setDateRange(dates)}
+              />
+              <Button icon={<ReloadOutlined />} onClick={fetchAnalytics} loading={loading}>
                 Refresh
               </Button>
               <Button 
                 type="primary" 
                 icon={<DownloadOutlined />}
-                style={{ backgroundColor: '#dc2626' }}
+                onClick={handleDownload}
+                style={{ backgroundColor: '#dc2626', borderColor: '#dc2626' }}
               >
-                Export Report
+                Export
               </Button>
             </Space>
           </Col>
         </Row>
 
-        {/* Key Performance Indicators */}
-        <Row gutter={16} className="mb-6">
+        {/* Key Metrics */}
+        <Row gutter={[16, 16]} className="mb-6">
           <Col xs={24} sm={12} lg={6}>
-            <Card>
+            <Card style={{ borderRadius: '12px' }}>
               <Statistic
-                title="Avg. Order Value"
-                value={kpis.avgOrderValue}
-                precision={2}
-                prefix="Rs."
-                valueStyle={{ color: '#dc2626' }}
-                suffix={
-                  <span style={{ fontSize: '14px', color: '#16a34a' }}>
-                    <ArrowUpOutlined /> 12%
-                  </span>
-                }
-              />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} lg={6}>
-            <Card>
-              <Statistic
-                title="Customer Retention"
-                value={kpis.customerRetention}
-                precision={1}
-                suffix="%"
-                valueStyle={{ color: '#16a34a' }}
-                prefix={
-                  <span style={{ fontSize: '14px', color: '#16a34a' }}>
-                    <ArrowUpOutlined />
-                  </span>
-                }
-              />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} lg={6}>
-            <Card>
-              <Statistic
-                title="Inventory Turnover"
-                value={kpis.inventoryTurnover}
-                precision={1}
-                suffix="x"
+                title="Total Products Analyzed"
+                value={stats.totalProducts}
+                prefix={<SwapOutlined />}
                 valueStyle={{ color: '#2563eb' }}
               />
             </Card>
           </Col>
           <Col xs={24} sm={12} lg={6}>
-            <Card>
+            <Card style={{ borderRadius: '12px' }}>
               <Statistic
-                title="Profit Margin"
-                value={kpis.profitMargin}
-                precision={1}
-                suffix="%"
+                title="Avg Inventory Turnover"
+                value={stats.avgTurnover}
+                precision={2}
+                suffix="x"
+                prefix={<ReloadOutlined />}
+                valueStyle={{ color: '#059669' }}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} sm={12} lg={6}>
+            <Card style={{ borderRadius: '12px' }}>
+              <Statistic
+                title="Fast Moving Items"
+                value={stats.fastMovingCount}
+                prefix={<RiseOutlined />}
+                valueStyle={{ color: '#16a34a' }}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} sm={12} lg={6}>
+            <Card style={{ borderRadius: '12px' }}>
+              <Statistic
+                title="Slow Moving Items"
+                value={stats.slowMovingCount}
+                prefix={<FallOutlined />}
                 valueStyle={{ color: '#ea580c' }}
-                prefix={
-                  <span style={{ fontSize: '14px', color: '#ea580c' }}>
-                    <ArrowDownOutlined /> 3%
-                  </span>
-                }
               />
             </Card>
           </Col>
         </Row>
 
-        {/* Revenue Analysis */}
-        <Row gutter={16} className="mb-6">
+        {/* Charts Row */}
+        <Row gutter={[16, 16]} className="mb-6">
           <Col xs={24} lg={16}>
-            <Card title="Revenue vs Cost vs Profit Analysis" loading={loading}>
-              <ResponsiveContainer width="100%" height={300}>
-                <AreaChart data={revenueData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="week" />
+            <Card 
+              title={<span style={{ fontSize: '18px', fontWeight: 'bold' }}>Top Selling Products by Revenue</span>}
+              style={{ borderRadius: '16px' }}
+              loading={loading}
+            >
+              <ResponsiveContainer width="100%" height={350}>
+                <BarChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis dataKey="name" angle={-15} textAnchor="end" height={100} />
                   <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Area 
-                    type="monotone" 
-                    dataKey="revenue" 
-                    stackId="1"
-                    stroke="#dc2626" 
-                    fill="#dc2626" 
-                    fillOpacity={0.6}
-                    name="Revenue"
+                  <Tooltip 
+                    formatter={(value) => `Rs. ${parseFloat(value).toFixed(2)}`}
+                    labelFormatter={(label, payload) => payload[0]?.payload?.fullName}
                   />
-                  <Area 
-                    type="monotone" 
-                    dataKey="cost" 
-                    stackId="2"
-                    stroke="#ea580c" 
-                    fill="#ea580c" 
-                    fillOpacity={0.6}
-                    name="Cost"
-                  />
-                  <Area 
-                    type="monotone" 
-                    dataKey="profit" 
-                    stackId="3"
-                    stroke="#16a34a" 
-                    fill="#16a34a" 
-                    fillOpacity={0.6}
-                    name="Profit"
-                  />
-                </AreaChart>
+                  <Bar dataKey="value" fill="#dc2626" radius={[8, 8, 0, 0]} />
+                </BarChart>
               </ResponsiveContainer>
             </Card>
           </Col>
+          
           <Col xs={24} lg={8}>
-            <Card title="Performance Metrics" loading={loading}>
-              <ResponsiveContainer width="100%" height={300}>
-                <RadarChart data={performanceMetrics}>
-                  <PolarGrid />
-                  <PolarAngleAxis dataKey="metric" />
-                  <PolarRadiusAxis angle={90} domain={[0, 100]} />
-                  <Radar 
-                    name="Score" 
-                    dataKey="score" 
-                    stroke="#dc2626" 
-                    fill="#dc2626" 
-                    fillOpacity={0.6} 
-                  />
-                  <Tooltip />
-                </RadarChart>
+            <Card 
+              title={<span style={{ fontSize: '18px', fontWeight: 'bold' }}>Revenue Distribution</span>}
+              style={{ borderRadius: '16px' }}
+              loading={loading}
+            >
+              <ResponsiveContainer width="100%" height={350}>
+                <PieChart>
+                  <Pie
+                    data={chartData.slice(0, 6)}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
+                    outerRadius={100}
+                    dataKey="value"
+                  >
+                    {chartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value) => `Rs. ${parseFloat(value).toFixed(2)}`} />
+                </PieChart>
               </ResponsiveContainer>
+              {chartData.slice(0, 6).map((item, index) => (
+                <div key={index} style={{ display: 'flex', alignItems: 'center', marginTop: '8px', fontSize: '12px' }}>
+                  <span style={{ 
+                    width: '12px', 
+                    height: '12px', 
+                    backgroundColor: COLORS[index % COLORS.length], 
+                    borderRadius: '50%', 
+                    marginRight: '8px' 
+                  }}></span>
+                  <span>{item.fullName}</span>
+                </div>
+              ))}
             </Card>
           </Col>
         </Row>
 
-        {/* Customer Behavior */}
-        <Row gutter={16} className="mb-6">
-          <Col xs={24} lg={12}>
-            <Card title="Customer Acquisition & Retention" loading={loading}>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={customerData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="day" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="newCustomers" fill="#2563eb" name="New Customers" />
-                  <Bar dataKey="returningCustomers" fill="#16a34a" name="Returning Customers" />
-                </BarChart>
-              </ResponsiveContainer>
-            </Card>
-          </Col>
-          <Col xs={24} lg={12}>
-            <Card title="Inventory Health by Category" loading={loading}>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={inventoryHealth} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" />
-                  <YAxis dataKey="category" type="category" />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="inStock" fill="#16a34a" name="In Stock" stackId="a" />
-                  <Bar dataKey="lowStock" fill="#ea580c" name="Low Stock" stackId="a" />
-                  <Bar dataKey="outOfStock" fill="#dc2626" name="Out of Stock" stackId="a" />
-                </BarChart>
-              </ResponsiveContainer>
-            </Card>
-          </Col>
-        </Row>
-
-        {/* Inventory Status Overview */}
-        <Row gutter={16} className="mb-6">
-          <Col xs={24} md={6}>
-            <Card>
-              <div className="text-center">
-                <Progress 
-                  type="dashboard" 
-                  percent={85} 
-                  strokeColor="#16a34a"
-                  format={() => (
-                    <div>
-                      <div style={{ fontSize: '24px', fontWeight: 'bold' }}>85%</div>
-                      <div style={{ fontSize: '12px', color: '#666' }}>In Stock</div>
-                    </div>
-                  )}
-                />
-              </div>
-            </Card>
-          </Col>
-          <Col xs={24} md={6}>
-            <Card>
-              <div className="text-center">
-                <Progress 
-                  type="dashboard" 
-                  percent={10} 
-                  strokeColor="#ea580c"
-                  format={() => (
-                    <div>
-                      <div style={{ fontSize: '24px', fontWeight: 'bold' }}>10%</div>
-                      <div style={{ fontSize: '12px', color: '#666' }}>Low Stock</div>
-                    </div>
-                  )}
-                />
-              </div>
-            </Card>
-          </Col>
-          <Col xs={24} md={6}>
-            <Card>
-              <div className="text-center">
-                <Progress 
-                  type="dashboard" 
-                  percent={5} 
-                  strokeColor="#dc2626"
-                  format={() => (
-                    <div>
-                      <div style={{ fontSize: '24px', fontWeight: 'bold' }}>5%</div>
-                      <div style={{ fontSize: '12px', color: '#666' }}>Out of Stock</div>
-                    </div>
-                  )}
-                />
-              </div>
-            </Card>
-          </Col>
-          <Col xs={24} md={6}>
-            <Card>
-              <div className="text-center">
-                <Progress 
-                  type="dashboard" 
-                  percent={92} 
-                  strokeColor="#2563eb"
-                  format={() => (
-                    <div>
-                      <div style={{ fontSize: '24px', fontWeight: 'bold' }}>92%</div>
-                      <div style={{ fontSize: '12px', color: '#666' }}>Fulfillment Rate</div>
-                    </div>
-                  )}
-                />
-              </div>
-            </Card>
-          </Col>
-        </Row>
-
-        {/* Low Stock Alerts */}
-        <Row gutter={16}>
+        {/* Top Selling Products Table */}
+        <Row gutter={[16, 16]} className="mb-6">
           <Col xs={24}>
-            <Card title="Low Stock Alerts - Immediate Action Required" loading={loading}>
+            <Card 
+              title={<span style={{ fontSize: '18px', fontWeight: 'bold' }}>Top 10 Best Sellers</span>}
+              style={{ borderRadius: '16px' }}
+            >
               <Table
-                columns={lowStockColumns}
-                dataSource={lowStockProducts}
-                rowKey="id"
-                pagination={false}
+                columns={topSellingColumns}
+                dataSource={topSellingProducts}
+                rowKey="product_id"
+                loading={loading}
+                pagination={{ pageSize: 10 }}
+              />
+            </Card>
+          </Col>
+        </Row>
+
+        {/* Fast & Slow Moving Items */}
+        <Row gutter={[16, 16]}>
+          <Col xs={24} lg={12}>
+            <Card 
+              title={<span style={{ fontSize: '18px', fontWeight: 'bold', color: '#16a34a' }}>Fast Moving Items</span>}
+              style={{ borderRadius: '16px' }}
+            >
+              <Table
+                columns={movementColumns}
+                dataSource={fastMovingItems}
+                rowKey="product_id"
+                loading={loading}
+                pagination={{ pageSize: 5 }}
+                size="small"
+              />
+            </Card>
+          </Col>
+          
+          <Col xs={24} lg={12}>
+            <Card 
+              title={<span style={{ fontSize: '18px', fontWeight: 'bold', color: '#ea580c' }}>Slow Moving Items</span>}
+              style={{ borderRadius: '16px' }}
+            >
+              <Table
+                columns={movementColumns}
+                dataSource={slowMovingItems}
+                rowKey="product_id"
+                loading={loading}
+                pagination={{ pageSize: 5 }}
+                size="small"
               />
             </Card>
           </Col>
