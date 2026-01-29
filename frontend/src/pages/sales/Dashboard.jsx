@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import SalesLayout from '../../components/sales/SalesLayout';
-import { Card, Row, Col, Statistic, Table, Tag, DatePicker, Progress, Avatar } from 'antd';
-import { DollarOutlined, ShoppingCartOutlined, RiseOutlined, ClockCircleOutlined, TrophyOutlined, FireOutlined } from '@ant-design/icons';
+import { Card, Row, Col, Statistic, Table, Tag, DatePicker, Progress, Avatar, Button, Space, Dropdown, message } from 'antd';
+import { DollarOutlined, ShoppingCartOutlined, RiseOutlined, ClockCircleOutlined, TrophyOutlined, FireOutlined, DownloadOutlined, CalendarOutlined } from '@ant-design/icons';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts';
 import api from '../../api/axios';
 import dayjs from 'dayjs';
@@ -12,8 +12,8 @@ const SalesDashboard = () => {
   const [stats, setStats] = useState({
     today_sales: 0,
     today_transactions: 0,
-    weekly_sales: 0,
-    monthly_sales: 0
+    range_sales: 0,
+    range_transactions: 0
   });
   const [recentSales, setRecentSales] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -27,7 +27,26 @@ const SalesDashboard = () => {
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
-      // Fetch sales summary
+      // Fetch TODAY's sales summary for cards and goals
+      const todayRes = await api.get('/sales/summary', {
+        params: {
+          start_date: dayjs().format('YYYY-MM-DD'),
+          end_date: dayjs().format('YYYY-MM-DD')
+        }
+      });
+      
+      let todayStats = { today_sales: 0, today_transactions: 0 };
+      if (todayRes.data.success) {
+        const todayData = todayRes.data.data || [];
+        const aggregated = todayData.reduce((acc, channel) => {
+          acc.today_sales += parseFloat(channel.total_sales || 0);
+          acc.today_transactions += parseInt(channel.transaction_count || 0);
+          return acc;
+        }, { today_sales: 0, today_transactions: 0 });
+        todayStats = aggregated;
+      }
+
+      // Fetch DATE RANGE sales summary for cards
       const summaryRes = await api.get('/sales/summary', {
         params: {
           start_date: dateRange[0].format('YYYY-MM-DD'),
@@ -35,9 +54,21 @@ const SalesDashboard = () => {
         }
       });
       
+      let rangeStats = { range_sales: 0, range_transactions: 0 };
       if (summaryRes.data.success) {
-        setStats(summaryRes.data.data);
+        const summaryData = summaryRes.data.data || [];
+        const aggregated = summaryData.reduce((acc, channel) => {
+          acc.range_sales += parseFloat(channel.total_sales || 0);
+          acc.range_transactions += parseInt(channel.transaction_count || 0);
+          return acc;
+        }, { range_sales: 0, range_transactions: 0 });
+        rangeStats = aggregated;
       }
+
+      setStats({
+        ...todayStats,
+        ...rangeStats
+      });
 
       // Fetch all sales for date range to build chart
       const salesRes = await api.get('/sales', {
@@ -83,18 +114,183 @@ const SalesDashboard = () => {
     }
   };
 
+  const handleQuickRange = (rangeType) => {
+    let newRange;
+    const today = dayjs();
+    
+    switch(rangeType) {
+      case 'today':
+        newRange = [today, today];
+        break;
+      case 'yesterday':
+        newRange = [today.subtract(1, 'day'), today.subtract(1, 'day')];
+        break;
+      case 'last7days':
+        newRange = [today.subtract(7, 'day'), today];
+        break;
+      case 'last30days':
+        newRange = [today.subtract(30, 'day'), today];
+        break;
+      case 'thisMonth':
+        newRange = [today.startOf('month'), today];
+        break;
+      case 'lastMonth':
+        const lastMonth = today.subtract(1, 'month');
+        newRange = [lastMonth.startOf('month'), lastMonth.endOf('month')];
+        break;
+      default:
+        newRange = [today.subtract(7, 'day'), today];
+    }
+    
+    setDateRange(newRange);
+  };
+
+  const handleDownloadReport = (format) => {
+    try {
+      if (format === 'csv') {
+        // Generate CSV
+        const headers = ['Sale ID', 'Date', 'Channel', 'Customer', 'Amount', 'Payment', 'Status'];
+        const csvData = recentSales.map(sale => [
+          sale.id,
+          dayjs(sale.sale_date).format('YYYY-MM-DD HH:mm'),
+          sale.channel,
+          sale.customer_name || 'Walk-in',
+          sale.total_amount,
+          sale.payment_method,
+          sale.status
+        ]);
+        
+        const csvContent = [
+          headers.join(','),
+          ...csvData.map(row => row.join(','))
+        ].join('\n');
+        
+        const blob = new Blob([csvContent], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `sales-report-${dateRange[0].format('YYYY-MM-DD')}-to-${dateRange[1].format('YYYY-MM-DD')}.csv`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+        message.success('CSV report downloaded successfully');
+      } else if (format === 'summary') {
+        // Generate summary report
+        const summaryData = [
+          'SALES SUMMARY REPORT',
+          `Period: ${dateRange[0].format('YYYY-MM-DD')} to ${dateRange[1].format('YYYY-MM-DD')}`,
+          '',
+          'TODAY\'S PERFORMANCE:',
+          `Total Sales: Rs. ${stats.today_sales.toFixed(2)}`,
+          `Transactions: ${stats.today_transactions}`,
+          `Average Sale: Rs. ${stats.today_transactions ? (stats.today_sales / stats.today_transactions).toFixed(2) : '0.00'}`,
+          '',
+          'PERIOD PERFORMANCE:',
+          `Total Sales: Rs. ${stats.range_sales.toFixed(2)}`,
+          `Total Transactions: ${stats.range_transactions}`,
+          `Average Sale: Rs. ${stats.range_transactions ? (stats.range_sales / stats.range_transactions).toFixed(2) : '0.00'}`,
+          '',
+          'Generated on: ' + dayjs().format('YYYY-MM-DD HH:mm:ss')
+        ].join('\n');
+        
+        const blob = new Blob([summaryData], { type: 'text/plain' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `sales-summary-${dayjs().format('YYYY-MM-DD')}.txt`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+        message.success('Summary report downloaded successfully');
+      }
+    } catch (error) {
+      message.error('Failed to download report');
+      console.error('Download error:', error);
+    }
+  };
+
   return (
     <SalesLayout>
       <div style={{ padding: '20px', background: '#f5f7fa', marginLeft: '-24px', marginRight: '-24px', marginTop: '-24px', minHeight: 'calc(100vh - 64px)' }}>
-        {/* Date Picker */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '24px' }}>
-          <RangePicker
-            value={dateRange}
-            onChange={(dates) => setDateRange(dates)}
-            format="YYYY-MM-DD"
-            size="large"
-            style={{ borderRadius: '8px', border: '2px solid #fee2e2' }}
-          />
+        {/* Header with Date Picker and Quick Filters */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
+          <Space wrap>
+            <Button
+              icon={<CalendarOutlined />}
+              onClick={() => handleQuickRange('today')}
+              style={{ borderRadius: '8px' }}
+            >
+              Today
+            </Button>
+            <Button
+              icon={<CalendarOutlined />}
+              onClick={() => handleQuickRange('yesterday')}
+              style={{ borderRadius: '8px' }}
+            >
+              Yesterday
+            </Button>
+            <Button
+              icon={<CalendarOutlined />}
+              onClick={() => handleQuickRange('last7days')}
+              style={{ borderRadius: '8px' }}
+            >
+              Last 7 Days
+            </Button>
+            <Button
+              icon={<CalendarOutlined />}
+              onClick={() => handleQuickRange('last30days')}
+              style={{ borderRadius: '8px' }}
+            >
+              Last 30 Days
+            </Button>
+            <Button
+              icon={<CalendarOutlined />}
+              onClick={() => handleQuickRange('thisMonth')}
+              style={{ borderRadius: '8px' }}
+            >
+              This Month
+            </Button>
+          </Space>
+          
+          <Space>
+            <Dropdown
+              menu={{
+                items: [
+                  {
+                    key: 'csv',
+                    label: 'Download CSV',
+                    icon: <DownloadOutlined />,
+                    onClick: () => handleDownloadReport('csv')
+                  },
+                  {
+                    key: 'summary',
+                    label: 'Download Summary',
+                    icon: <DownloadOutlined />,
+                    onClick: () => handleDownloadReport('summary')
+                  }
+                ]
+              }}
+              placement="bottomRight"
+            >
+              <Button
+                type="primary"
+                icon={<DownloadOutlined />}
+                style={{ 
+                  borderRadius: '8px',
+                  background: '#dc2626',
+                  borderColor: '#dc2626'
+                }}
+              >
+                Download Report
+              </Button>
+            </Dropdown>
+            
+            <RangePicker
+              value={dateRange}
+              onChange={(dates) => setDateRange(dates)}
+              format="YYYY-MM-DD"
+              size="large"
+              style={{ borderRadius: '8px', border: '2px solid #fee2e2' }}
+            />
+          </Space>
         </div>
 
         {/* Statistics Cards with Gradient */}
@@ -105,7 +301,8 @@ const SalesDashboard = () => {
                 background: '#dc2626',
                 border: 'none',
                 borderRadius: '16px',
-                boxShadow: '0 8px 24px rgba(220, 38, 38, 0.3)'
+                boxShadow: '0 8px 24px rgba(220, 38, 38, 0.3)',
+                outline: 'none'
               }}
               bodyStyle={{ padding: '24px' }}
             >
@@ -128,10 +325,11 @@ const SalesDashboard = () => {
           <Col xs={24} sm={12} lg={6}>
             <Card 
               style={{
-                background: '#ef4444',
+                background: '#dc2626',
                 border: 'none',
                 borderRadius: '16px',
-                boxShadow: '0 8px 24px rgba(239, 68, 68, 0.3)'
+                boxShadow: '0 8px 24px rgba(220, 38, 38, 0.3)',
+                outline: 'none'
               }}
               bodyStyle={{ padding: '24px' }}
             >
@@ -153,23 +351,24 @@ const SalesDashboard = () => {
           <Col xs={24} sm={12} lg={6}>
             <Card 
               style={{
-                background: '#f87171',
+                background: '#dc2626',
                 border: 'none',
                 borderRadius: '16px',
-                boxShadow: '0 8px 24px rgba(248, 113, 113, 0.3)'
+                boxShadow: '0 8px 24px rgba(220, 38, 38, 0.3)',
+                outline: 'none'
               }}
               bodyStyle={{ padding: '24px' }}
             >
               <div style={{ color: 'white' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                  <span style={{ fontSize: '14px', opacity: 0.9 }}>Weekly Sales</span>
+                  <span style={{ fontSize: '14px', opacity: 0.9 }}>Period Sales</span>
                   <RiseOutlined style={{ fontSize: '24px', opacity: 0.9 }} />
                 </div>
                 <div style={{ fontSize: '32px', fontWeight: 'bold', marginBottom: '8px' }}>
-                  Rs. {(stats.weekly_sales || 0).toFixed(2)}
+                  Rs. {(stats.range_sales || 0).toFixed(2)}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', opacity: 0.9 }}>
-                  <span style={{ fontSize: '12px' }}>Last 7 days</span>
+                  <span style={{ fontSize: '12px' }}>{dateRange[0].format('MMM D')} - {dateRange[1].format('MMM D')}</span>
                 </div>
               </div>
             </Card>
@@ -178,23 +377,24 @@ const SalesDashboard = () => {
           <Col xs={24} sm={12} lg={6}>
             <Card 
               style={{
-                background: '#fca5a5',
+                background: '#dc2626',
                 border: 'none',
                 borderRadius: '16px',
-                boxShadow: '0 8px 24px rgba(252, 165, 165, 0.3)'
+                boxShadow: '0 8px 24px rgba(220, 38, 38, 0.3)',
+                outline: 'none'
               }}
               bodyStyle={{ padding: '24px' }}
             >
               <div style={{ color: 'white' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                  <span style={{ fontSize: '14px', opacity: 0.9 }}>Monthly Sales</span>
+                  <span style={{ fontSize: '14px', opacity: 0.9 }}>Period Transactions</span>
                   <ClockCircleOutlined style={{ fontSize: '24px', opacity: 0.9 }} />
                 </div>
                 <div style={{ fontSize: '32px', fontWeight: 'bold', marginBottom: '8px' }}>
-                  Rs. {(stats.monthly_sales || 0).toFixed(2)}
+                  {stats.range_transactions || 0}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', opacity: 0.9 }}>
-                  <span style={{ fontSize: '12px' }}>This month</span>
+                  <span style={{ fontSize: '12px' }}>{dateRange[0].format('MMM D')} - {dateRange[1].format('MMM D')}</span>
                 </div>
               </div>
             </Card>
@@ -208,12 +408,14 @@ const SalesDashboard = () => {
               title={<span style={{ fontSize: '18px', fontWeight: 'bold' }}>Sales Activity (Last 7 Days)</span>}
               style={{ 
                 borderRadius: '16px',
-                border: '1px solid #fee2e2',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+                border: '1px solid #e5e7eb',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                outline: 'none'
               }}
+              styles={{ body: { outline: 'none' } }}
             >
               <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={dailyChartData}>
+                <LineChart data={dailyChartData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                   <XAxis dataKey="date" stroke="#999" />
                   <YAxis stroke="#999" />
@@ -253,10 +455,12 @@ const SalesDashboard = () => {
               title={<span style={{ fontSize: '18px', fontWeight: 'bold' }}>Today's Goals</span>}
               style={{ 
                 borderRadius: '16px',
-                border: '1px solid #fee2e2',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-                height: '100%'
+                border: '1px solid #e5e7eb',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                height: '100%',
+                outline: 'none'
               }}
+              styles={{ body: { outline: 'none' } }}
             >
               <div style={{ padding: '12px 0' }}>
                 <div style={{ marginBottom: '24px' }}>
@@ -313,9 +517,11 @@ const SalesDashboard = () => {
           loading={loading}
           style={{ 
             borderRadius: '16px',
-            border: '1px solid #fee2e2',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+            border: '1px solid #e5e7eb',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+            outline: 'none'
           }}
+          styles={{ body: { outline: 'none' } }}
         >
           <Table
             columns={[

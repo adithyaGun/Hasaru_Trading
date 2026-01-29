@@ -199,8 +199,8 @@ const AdminDashboard = () => {
               title={<span style={{ fontSize: '18px', fontWeight: 'bold' }}>Sales Trend (Last 7 Days)</span>}
               style={{ 
                 borderRadius: '16px',
-                border: '1px solid #fee2e2',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+                border: '1px solid #e5e7eb',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
               }}
             >
               <ResponsiveContainer width="100%" height={300}>
@@ -242,8 +242,8 @@ const AdminDashboard = () => {
               title={<span style={{ fontSize: '18px', fontWeight: 'bold' }}>Sales by Category</span>}
               style={{ 
                 borderRadius: '16px',
-                border: '1px solid #fee2e2',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+                border: '1px solid #e5e7eb',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
               }}
             >
               <ResponsiveContainer width="100%" height={300}>
@@ -276,8 +276,8 @@ const AdminDashboard = () => {
               title={<span style={{ fontSize: '18px', fontWeight: 'bold' }}>Weekly Performance</span>}
               style={{ 
                 borderRadius: '16px',
-                border: '1px solid #fee2e2',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+                border: '1px solid #e5e7eb',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
               }}
             >
               <ResponsiveContainer width="100%" height={300}>
@@ -288,7 +288,7 @@ const AdminDashboard = () => {
                   <RechartsTooltip 
                     contentStyle={{ 
                       background: 'white', 
-                      border: '1px solid #fee2e2',
+                      border: '1px solid #e5e7eb',
                       borderRadius: '8px'
                     }}
                   />
@@ -305,8 +305,8 @@ const AdminDashboard = () => {
               title={<span style={{ fontSize: '18px', fontWeight: 'bold' }}>Top Performing Products</span>}
               style={{ 
                 borderRadius: '16px',
-                border: '1px solid #fee2e2',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+                border: '1px solid #e5e7eb',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
               }}
             >
               <div style={{ padding: '12px 0' }}>
@@ -344,8 +344,8 @@ const AdminDashboard = () => {
           title={<span style={{ fontSize: '18px', fontWeight: 'bold' }}>Recent Low Stock Alerts</span>}
           style={{ 
             borderRadius: '16px',
-            border: '1px solid #fee2e2',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+            border: '1px solid #e5e7eb',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
           }}
         >
           <Table

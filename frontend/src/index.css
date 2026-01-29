@@ -29,7 +29,7 @@
 }
 
 body {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -37,6 +37,17 @@ body {
 /* Ant Design customizations */
 .ant-layout {
   min-height: 100vh;
+}
+
+.ant-card {
+  outline: none !important;
+}
+
+.ant-card:focus,
+.ant-card:focus-visible,
+.ant-card:focus-within {
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 /* Custom utility classes */
