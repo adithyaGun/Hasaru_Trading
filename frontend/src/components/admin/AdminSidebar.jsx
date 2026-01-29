@@ -80,11 +80,16 @@ const AdminSidebar = () => {
       onCollapse={(value) => setCollapsed(value)}
       trigger={null}
     >
-      <div className="p-4 text-center font-bold text-xl border-b flex items-center justify-between">
-        {!collapsed && <span>Admin Panel</span>}
+      <div className="p-4 text-center font-bold text-xl border-b flex items-center justify-between" style={{ height: '64px' }}>
+        {collapsed ? (
+          <span style={{ color: '#dc2626', fontSize: '20px', fontWeight: 'bold' }}>HT</span>
+        ) : (
+          <span style={{ color: '#dc2626', fontWeight: 'bold' }}>Hasaru Trading</span>
+        )}
         <div 
           className="cursor-pointer hover:text-red-600 transition-colors"
           onClick={() => setCollapsed(!collapsed)}
+          style={{ color: '#dc2626' }}
         >
           {collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
         </div>

@@ -93,6 +93,7 @@ const promotionsAPI = {
 };
 
 export {
+  api,
   authAPI,
   productsAPI,
   cartAPI,
