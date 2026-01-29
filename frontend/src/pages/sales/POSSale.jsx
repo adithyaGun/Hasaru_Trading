@@ -18,7 +18,6 @@ import {
   Typography,
   Empty,
   Checkbox,
-  Radio,
   Tooltip
 } from 'antd';
 import {
@@ -31,7 +30,8 @@ import {
   UserOutlined,
   ShoppingCartOutlined,
   PercentageOutlined,
-  InfoCircleOutlined
+  InfoCircleOutlined,
+  InboxOutlined
 } from '@ant-design/icons';
 import api from '../../api/axios';
 import ReceiptPrint from '../../components/pos/ReceiptPrint';
@@ -51,24 +51,50 @@ const POSSale = () => {
   const [discountType, setDiscountType] = useState('fixed'); // 'fixed' or 'percentage'
   const [lastSaleData, setLastSaleData] = useState(null);
   const [isWalkIn, setIsWalkIn] = useState(true);
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [categories, setCategories] = useState([]);
   const [form] = Form.useForm();
   const searchInputRef = useRef(null);
 
   useEffect(() => {
     fetchProducts();
+    fetchCategories();
   }, []);
 
   useEffect(() => {
+    let filtered = products.filter(p => p.is_active === 1 && p.stock_quantity > 0);
+    
+    // Filter by category first
+    if (selectedCategory && selectedCategory !== 'all') {
+      filtered = filtered.filter(p => p.category?.toString() === selectedCategory.toString());
+    }
+    
+    // Then filter by search text if provided
     if (searchText) {
-      const filtered = products.filter(product =>
+      filtered = filtered.filter(product =>
         product.name.toLowerCase().includes(searchText.toLowerCase()) ||
         product.sku?.toLowerCase().includes(searchText.toLowerCase())
       );
-      setFilteredProducts(filtered);
-    } else {
-      setFilteredProducts([]);
     }
-  }, [searchText, products]);
+    
+    // Show filtered products (by category or search or both)
+    setFilteredProducts(filtered);
+  }, [searchText, products, selectedCategory]);
+
+  const fetchCategories = async () => {
+    try {
+      const response = await api.get('/products/categories');
+      const categoriesData = response.data?.data || [];
+      // Transform array of strings to array of objects
+      const categoriesWithId = categoriesData.map((name, index) => ({
+        id: index + 1,
+        name: name
+      }));
+      setCategories(categoriesWithId);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+    }
+  };
 
   const fetchProducts = async () => {
     try {
@@ -108,7 +134,6 @@ const POSSale = () => {
     }
     
     setSearchText('');
-    setFilteredProducts([]);
     searchInputRef.current?.focus();
   };
 
@@ -297,173 +322,427 @@ const POSSale = () => {
 
   return (
     <SalesLayout>
-      <div style={{ minHeight: 'calc(100vh - 140px)' }}>
-        <h1 className="text-2xl font-bold mb-4">Point of Sale - Over the Counter</h1>
+      <div style={{ minHeight: 'calc(100vh - 140px)', background: '#f5f7fa', padding: '20px', marginLeft: '-20px', marginRight: '-20px', marginTop: '-20px' }}>
+        <div style={{ marginBottom: '20px', background: 'white', padding: '20px', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
+          <Input
+            ref={searchInputRef}
+            size="large"
+            placeholder="Search product by name, SKU or scan barcode..."
+            prefix={<SearchOutlined style={{ fontSize: '18px', color: '#dc2626' }} />}
+            suffix={<BarcodeOutlined style={{ fontSize: '18px', color: '#dc2626' }} />}
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            autoFocus
+            style={{ 
+              borderRadius: '8px', 
+              border: '2px solid #fee2e2',
+              fontSize: '16px',
+              height: '48px'
+            }}
+          />
+        </div>
 
-        <Row gutter={16}>
-          {/* Left Side - Product Search & Cart */}
+        <Row gutter={20}>
+          {/* Left Side - Products */}
           <Col xs={24} lg={16}>
-            <Card className="mb-4">
-              <Input
-                ref={searchInputRef}
-                size="large"
-                placeholder="Search product by name or scan barcode..."
-                prefix={<SearchOutlined />}
-                suffix={<BarcodeOutlined />}
-                value={searchText}
-                onChange={(e) => setSearchText(e.target.value)}
-                autoFocus
-              />
-              
-              {/* Product Search Results */}
-              {filteredProducts.length > 0 && (
-                <div style={{ 
-                  marginTop: '10px', 
-                  maxHeight: '200px', 
-                  overflowY: 'auto',
-                  border: '1px solid #f0f0f0',
-                  borderRadius: '4px'
-                }}>
+            {/* Category Tabs */}
+            <div style={{ marginBottom: '16px' }}>
+              <Space wrap size="small">
+                <Button
+                  type={selectedCategory === 'all' ? 'primary' : 'default'}
+                  onClick={() => setSelectedCategory('all')}
+                  style={{
+                    borderRadius: '20px',
+                    fontWeight: selectedCategory === 'all' ? 'bold' : 'normal',
+                    background: selectedCategory === 'all' ? '#dc2626' : 'white',
+                    color: selectedCategory === 'all' ? 'white' : 'inherit',
+                    border: selectedCategory === 'all' ? 'none' : '1px solid #d9d9d9'
+                  }}
+                >
+                  All Products
+                </Button>
+                {categories.map(cat => (
+                  <Button
+                    key={cat.name}
+                    type={selectedCategory === cat.name ? 'primary' : 'default'}
+                    onClick={() => setSelectedCategory(cat.name)}
+                    style={{
+                      borderRadius: '20px',
+                      fontWeight: selectedCategory === cat.name ? 'bold' : 'normal',
+                      background: selectedCategory === cat.name ? '#dc2626' : 'white',
+                      color: selectedCategory === cat.name ? 'white' : 'inherit',
+                      border: selectedCategory === cat.name ? 'none' : '1px solid #d9d9d9'
+                    }}
+                  >
+                    {cat.name}
+                  </Button>
+                ))}
+              </Space>
+            </div>
+
+            {/* Products Grid */}
+            <div style={{ 
+              background: 'white', 
+              borderRadius: '12px', 
+              padding: '20px',
+              minHeight: '500px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+            }}>
+              {filteredProducts.length > 0 ? (
+                <Row gutter={[16, 16]}>
                   {filteredProducts.map(product => (
-                    <div
-                      key={product.id}
-                      onClick={() => handleProductSelect(product)}
-                      style={{
-                        padding: '10px',
-                        cursor: 'pointer',
-                        borderBottom: '1px solid #f0f0f0',
-                        transition: 'background 0.2s'
-                      }}
-                      onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
-                      onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <div>
-                          <div><strong>{product.name}</strong></div>
-                          <Text type="secondary" style={{ fontSize: '12px' }}>
-                            SKU: {product.sku} | Stock: {product.stock_quantity}
-                          </Text>
-                        </div>
-                        <div>
-                          <Text style={{ fontSize: '16px', fontWeight: 'bold', color: '#dc2626' }}>
+                    <Col key={product.id} xs={12} sm={8} md={6} lg={6}>
+                      <Card
+                        hoverable
+                        onClick={() => handleProductSelect(product)}
+                        style={{
+                          borderRadius: '12px',
+                          border: '1px solid #fee2e2',
+                          overflow: 'hidden',
+                          transition: 'all 0.3s ease',
+                          cursor: 'pointer',
+                          height: '100%'
+                        }}
+                        bodyStyle={{ padding: '12px' }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'translateY(-4px)';
+                          e.currentTarget.style.boxShadow = '0 8px 16px rgba(220, 38, 38, 0.2)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.boxShadow = 'none';
+                        }}
+                      >
+                        <div style={{ textAlign: 'center' }}>
+                          <div style={{
+                            width: '80px',
+                            height: '80px',
+                            margin: '0 auto 12px',
+                            background: '#fee2e2',
+                            borderRadius: '12px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '32px',
+                            color: '#dc2626'
+                          }}>
+                            <InboxOutlined />
+                          </div>
+                          <div style={{ 
+                            fontSize: '14px', 
+                            fontWeight: '600',
+                            marginBottom: '4px',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap'
+                          }}>
+                            {product.name}
+                          </div>
+                          <div style={{ 
+                            fontSize: '11px', 
+                            color: '#999',
+                            marginBottom: '8px'
+                          }}>
+                            Stock: {product.stock_quantity}
+                          </div>
+                          <div style={{
+                            fontSize: '18px',
+                            fontWeight: 'bold',
+                            color: '#dc2626'
+                          }}>
                             Rs. {parseFloat(product.selling_price).toFixed(2)}
+                          </div>
+                        </div>
+                      </Card>
+                    </Col>
+                  ))}
+                </Row>
+              ) : (
+                <Empty 
+                  description={
+                    <span style={{ color: '#999' }}>
+                      {searchText || selectedCategory !== 'all' ? 'No products found' : 'No products available'}
+                    </span>
+                  }
+                  style={{ marginTop: '100px' }}
+                />
+              )}
+            </div>
+          </Col>
+
+          {/* Right Side - Cart & Payment */}
+          <Col xs={24} lg={8}>
+            <div style={{ position: 'sticky', top: '80px' }}>
+              {/* Cart */}
+              <Card 
+                title={
+                  <Space>
+                    <ShoppingCartOutlined style={{ color: '#dc2626' }} />
+                    <span>Cart ({cart.length} items)</span>
+                  </Space>
+                }
+                extra={
+                  cart.length > 0 && (
+                    <Button 
+                      type="text"
+                      icon={<ClearOutlined />} 
+                      onClick={handleClearCart}
+                      danger
+                      size="small"
+                    >
+                      Clear
+                    </Button>
+                  )
+                }
+                style={{ 
+                  marginBottom: '16px',
+                  borderRadius: '12px',
+                  border: '1px solid #fee2e2',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+                }}
+              >
+                {cart.length === 0 ? (
+                  <Empty 
+                    description="Cart is empty"
+                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                  />
+                ) : (
+                  <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                    {cart.map(item => (
+                      <div key={item.id} style={{
+                        padding: '12px',
+                        borderRadius: '8px',
+                        marginBottom: '8px',
+                        background: '#fef2f2',
+                        border: '1px solid #fee2e2'
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: '600', fontSize: '14px' }}>{item.name}</div>
+                            <div style={{ fontSize: '12px', color: '#999' }}>Rs. {item.price.toFixed(2)} each</div>
+                          </div>
+                          <Button 
+                            type="text" 
+                            danger 
+                            size="small"
+                            icon={<DeleteOutlined />}
+                            onClick={() => handleRemoveItem(item.id)}
+                          />
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <InputNumber
+                            min={1}
+                            max={item.stock}
+                            value={item.quantity}
+                            onChange={(value) => handleQuantityChange(item.id, value)}
+                            size="small"
+                            style={{ width: '80px' }}
+                          />
+                          <div style={{ 
+                            fontWeight: 'bold',
+                            fontSize: '16px',
+                            color: '#dc2626'
+                          }}>
+                            Rs. {(item.price * item.quantity).toFixed(2)}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Card>
+
+              {/* Order Summary */}
+              <Card 
+                style={{ 
+                  borderRadius: '12px',
+                  border: '1px solid #fee2e2',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                  background: '#fef2f2'
+                }}
+              >
+                <Space direction="vertical" style={{ width: '100%' }} size="large">
+                  {/* Subtotal */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Text style={{ fontSize: '15px' }}>Subtotal:</Text>
+                    <Text strong style={{ fontSize: '15px' }}>Rs. {calculateSubtotal().toFixed(2)}</Text>
+                  </div>
+                  
+                  {/* Discount Section */}
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                      <Text strong style={{ fontSize: '15px' }}>
+                        <PercentageOutlined style={{ marginRight: '6px', color: '#dc2626' }} />
+                        Discount
+                      </Text>
+                      {discount > 0 && (
+                        <Button 
+                          type="link" 
+                          size="small" 
+                          danger
+                          onClick={() => {
+                            setDiscount(0);
+                            setDiscountType('fixed');
+                          }}
+                        >
+                          Clear
+                        </Button>
+                      )}
+                    </div>
+                    
+                    <Space direction="vertical" style={{ width: '100%' }} size="small">
+                      {/* Quick Buttons */}
+                      <Row gutter={8}>
+                        <Col span={8}>
+                          <Button
+                            block
+                            type={discountType === 'percentage' && discount === 5 ? 'primary' : 'default'}
+                            onClick={() => {
+                              setDiscountType('percentage');
+                              setDiscount(5);
+                            }}
+                            disabled={cart.length === 0}
+                            style={{
+                              borderRadius: '8px',
+                              fontWeight: '600',
+                              background: discountType === 'percentage' && discount === 5 ? '#dc2626' : 'white',
+                              color: discountType === 'percentage' && discount === 5 ? 'white' : 'inherit',
+                              border: discountType === 'percentage' && discount === 5 ? 'none' : '1px solid #d9d9d9'
+                            }}
+                          >
+                            5%
+                          </Button>
+                        </Col>
+                        <Col span={8}>
+                          <Button
+                            block
+                            type={discountType === 'percentage' && discount === 10 ? 'primary' : 'default'}
+                            onClick={() => {
+                              setDiscountType('percentage');
+                              setDiscount(10);
+                            }}
+                            disabled={cart.length === 0}
+                            style={{
+                              borderRadius: '8px',
+                              fontWeight: '600',
+                              background: discountType === 'percentage' && discount === 10 ? '#dc2626' : 'white',
+                              color: discountType === 'percentage' && discount === 10 ? 'white' : 'inherit',
+                              border: discountType === 'percentage' && discount === 10 ? 'none' : '1px solid #d9d9d9'
+                            }}
+                          >
+                            10%
+                          </Button>
+                        </Col>
+                        <Col span={8}>
+                          <Button
+                            block
+                            type={discountType === 'percentage' && discount === 15 ? 'primary' : 'default'}
+                            onClick={() => {
+                              setDiscountType('percentage');
+                              setDiscount(15);
+                            }}
+                            disabled={cart.length === 0}
+                            style={{
+                              borderRadius: '8px',
+                              fontWeight: '600',
+                              background: discountType === 'percentage' && discount === 15 ? '#dc2626' : 'white',
+                              color: discountType === 'percentage' && discount === 15 ? 'white' : 'inherit',
+                              border: discountType === 'percentage' && discount === 15 ? 'none' : '1px solid #d9d9d9'
+                            }}
+                          >
+                            15%
+                          </Button>
+                        </Col>
+                      </Row>
+                      
+                      {/* Custom Discount Input */}
+                      <Space.Compact style={{ width: '100%' }}>
+                        <Select
+                          value={discountType}
+                          onChange={setDiscountType}
+                          style={{ width: '90px' }}
+                          disabled={cart.length === 0}
+                        >
+                          <Option value="percentage">
+                            <PercentageOutlined /> %
+                          </Option>
+                          <Option value="fixed">Rs.</Option>
+                        </Select>
+                        <InputNumber
+                          min={0}
+                          max={discountType === 'percentage' ? 100 : calculateSubtotal()}
+                          value={discount}
+                          onChange={setDiscount}
+                          style={{ width: 'calc(100% - 90px)' }}
+                          placeholder="Custom discount"
+                          disabled={cart.length === 0}
+                        />
+                      </Space.Compact>
+                    </Space>
+                    
+                    {discount > 0 && (
+                      <div style={{ 
+                        marginTop: '12px', 
+                        padding: '10px 14px', 
+                        background: '#fff1f0', 
+                        borderRadius: '8px',
+                        border: '1px solid #ffccc7'
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Text type="secondary" style={{ fontSize: '13px' }}>
+                            {discountType === 'percentage' ? `${discount}% discount` : `Rs. ${discount} off`}
+                          </Text>
+                          <Text type="danger" strong style={{ fontSize: '14px' }}>
+                            - Rs. {calculateDiscount().toFixed(2)}
                           </Text>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Card>
-
-            {/* Cart */}
-            <Card 
-              title={
-                <Space>
-                  <ShoppingCartOutlined />
-                  Cart Items ({cart.length})
-                </Space>
-              }
-              extra={
-                <Button 
-                  icon={<ClearOutlined />} 
-                  onClick={handleClearCart}
-                  disabled={cart.length === 0}
-                  danger
-                >
-                  Clear Cart
-                </Button>
-              }
-            >
-              {cart.length === 0 ? (
-                <Empty description="Cart is empty" />
-              ) : (
-                <Table
-                  columns={cartColumns}
-                  dataSource={cart}
-                  rowKey="id"
-                  pagination={false}
-                  size="small"
-                />
-              )}
-            </Card>
-          </Col>
-
-          {/* Right Side - Order Summary & Payment */}
-          <Col xs={24} lg={8}>
-            <Card 
-              title="Order Summary"
-              style={{ position: 'sticky', top: '80px' }}
-            >
-              <div style={{ marginBottom: '20px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-                  <Text>Subtotal:</Text>
-                  <Text strong>Rs. {calculateSubtotal().toFixed(2)}</Text>
-                </div>
-                
-                {/* Discount Section */}
-                <div style={{ marginBottom: '12px', padding: '12px', background: '#f5f5f5', borderRadius: '4px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                    <PercentageOutlined />
-                    <Text strong>Discount</Text>
+                    )}
                   </div>
-                  <Space.Compact style={{ width: '100%', marginBottom: '8px' }}>
-                    <Radio.Group 
-                      value={discountType} 
-                      onChange={(e) => setDiscountType(e.target.value)}
-                      size="small"
-                    >
-                      <Radio.Button value="fixed">Rs.</Radio.Button>
-                      <Radio.Button value="percentage">%</Radio.Button>
-                    </Radio.Group>
-                    <InputNumber
-                      min={0}
-                      max={discountType === 'percentage' ? 100 : calculateSubtotal()}
-                      value={discount}
-                      onChange={setDiscount}
-                      style={{ width: '100%' }}
-                      placeholder="0"
-                      disabled={cart.length === 0}
-                    />
-                  </Space.Compact>
-                  {discount > 0 && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Text type="secondary" style={{ fontSize: '12px' }}>Discount Amount:</Text>
-                      <Text type="danger" style={{ fontSize: '12px' }}>
-                        - Rs. {calculateDiscount().toFixed(2)}
-                      </Text>
-                    </div>
-                  )}
-                </div>
-                
-                <Divider style={{ margin: '12px 0' }} />
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
-                  <Text style={{ fontSize: '18px', fontWeight: 'bold' }}>Total:</Text>
-                  <Text style={{ fontSize: '24px', fontWeight: 'bold', color: '#dc2626' }}>
-                    Rs. {calculateTotal().toFixed(2)}
-                  </Text>
-                </div>
-              </div>
+                  
+                  <Divider style={{ margin: '4px 0' }} />
+                  
+                  {/* Total */}
+                  <div style={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between',
+                    padding: '12px',
+                    background: 'white',
+                    borderRadius: '8px',
+                    border: '2px solid #fee2e2'
+                  }}>
+                    <Text style={{ fontSize: '18px', fontWeight: 'bold' }}>Total:</Text>
+                    <Text style={{ 
+                      fontSize: '28px', 
+                      fontWeight: 'bold',
+                      color: '#dc2626'
+                    }}>
+                      Rs. {calculateTotal().toFixed(2)}
+                    </Text>
+                  </div>
 
-              <Space direction="vertical" style={{ width: '100%' }}>
-                <Button
-                  type="primary"
-                  size="large"
-                  block
-                  icon={<DollarOutlined />}
-                  onClick={handleCheckout}
-                  disabled={cart.length === 0}
-                  style={{ 
-                    height: '50px',
-                    fontSize: '16px',
-                    backgroundColor: '#dc2626',
-                    borderColor: '#dc2626'
-                  }}
-                >
-                  Proceed to Payment
-                </Button>
-              </Space>
-            </Card>
+                  <Button
+                    type="primary"
+                    size="large"
+                    block
+                    icon={<DollarOutlined />}
+                    onClick={handleCheckout}
+                    disabled={cart.length === 0}
+                    style={{ 
+                      height: '56px',
+                      fontSize: '18px',
+                      fontWeight: 'bold',
+                      borderRadius: '12px',
+                      background: '#dc2626',
+                      border: 'none',
+                      boxShadow: '0 4px 12px rgba(220, 38, 38, 0.3)'
+                    }}
+                  >
+                    Proceed to Payment
+                  </Button>
+                </Space>
+              </Card>
+            </div>
           </Col>
         </Row>
       </div>

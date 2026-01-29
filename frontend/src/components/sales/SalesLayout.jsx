@@ -6,11 +6,11 @@ const { Content } = Layout;
 
 const SalesLayout = ({ children }) => {
   return (
-    <Layout className="min-h-screen">
+    <Layout className="min-h-screen" style={{ background: '#f5f7fa' }}>
       <SalesSidebar />
-      <Layout>
+      <Layout style={{ background: '#f5f7fa' }}>
         <SalesHeader />
-        <Content className="m-6">
+        <Content style={{ margin: '24px', background: '#f5f7fa' }}>
           {children}
         </Content>
       </Layout>

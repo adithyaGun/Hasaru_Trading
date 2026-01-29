@@ -56,7 +56,6 @@ const OnlineOrders = () => {
       const ordersData = response.data?.data?.sales || [];
       setOrders(ordersData);
       calculateStats(ordersData);
-      message.success('Orders loaded successfully');
     } catch (error) {
       message.error('Failed to load orders');
       console.error('Error fetching orders:', error);

@@ -16,7 +16,8 @@ import {
   Col,
   Card,
   Statistic,
-  Badge
+  Badge,
+  Tooltip
 } from 'antd';
 import { 
   PlusOutlined, 
@@ -24,7 +25,8 @@ import {
   DeleteOutlined, 
   SearchOutlined,
   ReloadOutlined,
-  ExportOutlined
+  ExportOutlined,
+  EyeOutlined
 } from '@ant-design/icons';
 import api from '../../api/axios';
 
@@ -40,6 +42,9 @@ const AdminProducts = () => {
   const [searchText, setSearchText] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [batchesModalVisible, setBatchesModalVisible] = useState(false);
+  const [selectedProductBatches, setSelectedProductBatches] = useState([]);
+  const [batchesLoading, setBatchesLoading] = useState(false);
   const [stats, setStats] = useState({
     total: 0,
     active: 0,
@@ -104,6 +109,24 @@ const AdminProducts = () => {
     } catch (error) {
       message.error('Failed to delete product');
       console.error('Error deleting product:', error);
+    }
+  };
+
+  const handleViewBatches = async (product) => {
+    setBatchesLoading(true);
+    setBatchesModalVisible(true);
+    try {
+      const response = await api.get(`/batches/${product.id}`);
+      setSelectedProductBatches({
+        product: product,
+        batches: response.data.data || []
+      });
+    } catch (error) {
+      message.error('Failed to load batches');
+      console.error('Error loading batches:', error);
+      setSelectedProductBatches({ product: product, batches: [] });
+    } finally {
+      setBatchesLoading(false);
     }
   };
 
@@ -200,6 +223,15 @@ const AdminProducts = () => {
       width: 150,
       render: (_, record) => (
         <Space>
+          <Tooltip title="View Batches">
+            <Button 
+              type="link" 
+              icon={<EyeOutlined />} 
+              onClick={() => handleViewBatches(record)}
+            >
+              Batches
+            </Button>
+          </Tooltip>
           <Button 
             type="link" 
             icon={<EditOutlined />} 
@@ -519,6 +551,92 @@ const AdminProducts = () => {
             <Input placeholder="Enter image URL" />
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* Batches Modal */}
+      <Modal
+        title={
+          <div>
+            <span>Product Batches - </span>
+            <Tag color="blue">{selectedProductBatches?.product?.name}</Tag>
+          </div>
+        }
+        open={batchesModalVisible}
+        onCancel={() => setBatchesModalVisible(false)}
+        footer={[
+          <Button key="close" onClick={() => setBatchesModalVisible(false)}>
+            Close
+          </Button>
+        ]}
+        width={900}
+      >
+        <Table
+          loading={batchesLoading}
+          dataSource={selectedProductBatches?.batches || []}
+          rowKey="id"
+          pagination={false}
+          columns={[
+            {
+              title: 'Batch Number',
+              dataIndex: 'batch_number',
+              key: 'batch_number',
+            },
+            {
+              title: 'Supplier',
+              dataIndex: 'supplier_name',
+              key: 'supplier_name',
+            },
+            {
+              title: 'Received',
+              dataIndex: 'quantity_received',
+              key: 'quantity_received',
+            },
+            {
+              title: 'Remaining',
+              dataIndex: 'quantity_remaining',
+              key: 'quantity_remaining',
+              render: (qty) => (
+                <Tag color={qty > 0 ? 'green' : 'red'}>
+                  {qty}
+                </Tag>
+              )
+            },
+            {
+              title: 'Cost',
+              dataIndex: 'unit_cost',
+              key: 'unit_cost',
+              render: (cost) => `Rs. ${parseFloat(cost).toFixed(2)}`
+            },
+            {
+              title: 'Received Date',
+              dataIndex: 'received_date',
+              key: 'received_date',
+              render: (date) => new Date(date).toLocaleDateString()
+            },
+            {
+              title: 'Status',
+              dataIndex: 'status',
+              key: 'status',
+              render: (status) => {
+                const colorMap = {
+                  active: 'green',
+                  depleted: 'orange',
+                  expired: 'red'
+                };
+                return (
+                  <Tag color={colorMap[status] || 'default'}>
+                    {status?.toUpperCase()}
+                  </Tag>
+                );
+              }
+            }
+          ]}
+        />
+        {(!selectedProductBatches?.batches || selectedProductBatches.batches.length === 0) && (
+          <div style={{ textAlign: 'center', padding: '20px', color: '#999' }}>
+            No batches found for this product
+          </div>
+        )}
       </Modal>
     </AdminLayout>
   );

@@ -14,7 +14,8 @@ import {
   message,
   Row,
   Col,
-  Statistic
+  Statistic,
+  Divider
 } from 'antd';
 import {
   EyeOutlined,
@@ -101,21 +102,31 @@ const SalesHistory = () => {
       const response = await api.get(`/sales/${saleId}`);
       const saleData = response.data?.data;
       
+      if (!saleData) {
+        throw new Error('No sale data found');
+      }
+      
+      // Ensure items is an array
+      const items = Array.isArray(saleData.items) ? saleData.items : [];
+      
       setSelectedSale({
         sale_id: saleData.id,
         customer_name: saleData.customer_name || 'Walk-in Customer',
         customer_phone: saleData.customer_phone,
         payment_method: saleData.payment_method,
-        items: saleData.items,
-        subtotal: parseFloat(saleData.subtotal),
-        discount: parseFloat(saleData.discount),
-        total: parseFloat(saleData.total_amount),
+        items: items,
+        subtotal: parseFloat(saleData.subtotal || 0),
+        discount: parseFloat(saleData.discount || 0),
+        total: parseFloat(saleData.total_amount || 0),
         sale_date: dayjs(saleData.sale_date).format('YYYY-MM-DD HH:mm:ss')
       });
       
-      setReceiptModalVisible(true);
+      // Add a small delay before showing modal to ensure data is set
+      setTimeout(() => {
+        setReceiptModalVisible(true);
+      }, 100);
     } catch (error) {
-      message.error('Failed to load receipt');
+      message.error('Failed to load receipt: ' + (error.message || 'Unknown error'));
       console.error('Error fetching receipt:', error);
     }
   };
@@ -141,14 +152,14 @@ const SalesHistory = () => {
       title: 'Sale ID',
       dataIndex: 'id',
       key: 'id',
-      width: 80,
+      width: 100,
       render: (id) => `#${id}`
     },
     {
       title: 'Channel',
       dataIndex: 'channel',
       key: 'channel',
-      width: 100,
+      width: 120,
       render: (channel) => (
         <Tag 
           icon={channel === 'pos' ? <ShopOutlined /> : <ShoppingCartOutlined />}
@@ -162,27 +173,28 @@ const SalesHistory = () => {
       title: 'Customer',
       dataIndex: 'customer_name',
       key: 'customer_name',
+      width: 150,
       render: (name) => name || 'Walk-in'
     },
     {
       title: 'Date',
       dataIndex: 'sale_date',
       key: 'sale_date',
-      width: 180,
+      width: 200,
       render: (date) => dayjs(date).format('YYYY-MM-DD HH:mm')
     },
     {
       title: 'Items',
       dataIndex: 'item_count',
       key: 'item_count',
-      width: 80,
+      width: 100,
       align: 'center'
     },
     {
       title: 'Total Amount',
       dataIndex: 'total_amount',
       key: 'total_amount',
-      width: 130,
+      width: 150,
       render: (amount) => (
         <span style={{ fontWeight: 'bold', color: '#dc2626' }}>
           Rs. {parseFloat(amount).toFixed(2)}
@@ -193,7 +205,7 @@ const SalesHistory = () => {
       title: 'Payment',
       dataIndex: 'payment_status',
       key: 'payment_status',
-      width: 110,
+      width: 130,
       render: (status) => (
         <Tag color={
           status === 'completed' ? 'green' :
@@ -207,7 +219,7 @@ const SalesHistory = () => {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
-      width: 100,
+      width: 120,
       render: (status) => (
         <Tag color={
           status === 'completed' ? 'success' :
@@ -221,7 +233,7 @@ const SalesHistory = () => {
     {
       title: 'Actions',
       key: 'actions',
-      width: 150,
+      width: 180,
       fixed: 'right',
       render: (_, record) => (
         <Space>
@@ -344,11 +356,13 @@ const SalesHistory = () => {
             dataSource={sales}
             rowKey="id"
             loading={loading}
-            scroll={{ x: 1200 }}
+            scroll={{ x: 1400 }}
+            size="middle"
             pagination={{
-              pageSize: 20,
+              pageSize: 15,
               showTotal: (total) => `Total ${total} sales`,
-              showSizeChanger: true
+              showSizeChanger: true,
+              pageSizeOptions: ['10', '15', '20', '50']
             }}
           />
         </Card>
