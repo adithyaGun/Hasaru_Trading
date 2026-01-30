@@ -114,7 +114,12 @@ const SalesHistory = () => {
         customer_name: saleData.customer_name || 'Walk-in Customer',
         customer_phone: saleData.customer_phone,
         payment_method: saleData.payment_method,
-        items: items,
+        items: items.map(item => ({
+          name: item.product_name,
+          sku: item.product_sku || item.sku,
+          quantity: item.quantity,
+          price: parseFloat(item.unit_price || item.price || 0)
+        })),
         subtotal: parseFloat(saleData.subtotal || 0),
         discount: parseFloat(saleData.discount || 0),
         total: parseFloat(saleData.total_amount || 0),
@@ -152,20 +157,20 @@ const SalesHistory = () => {
       title: 'Sale ID',
       dataIndex: 'id',
       key: 'id',
-      width: 100,
+      width: 80,
       render: (id) => `#${id}`
     },
     {
       title: 'Channel',
       dataIndex: 'channel',
       key: 'channel',
-      width: 120,
+      width: 100,
       render: (channel) => (
         <Tag 
           icon={channel === 'pos' ? <ShopOutlined /> : <ShoppingCartOutlined />}
           color={channel === 'pos' ? 'blue' : 'green'}
         >
-          {channel.toUpperCase()}
+          {channel?.toUpperCase()}
         </Tag>
       )
     },
@@ -180,21 +185,21 @@ const SalesHistory = () => {
       title: 'Date',
       dataIndex: 'sale_date',
       key: 'sale_date',
-      width: 200,
+      width: 160,
       render: (date) => dayjs(date).format('YYYY-MM-DD HH:mm')
     },
     {
       title: 'Items',
       dataIndex: 'item_count',
       key: 'item_count',
-      width: 100,
+      width: 70,
       align: 'center'
     },
     {
-      title: 'Total Amount',
+      title: 'Amount',
       dataIndex: 'total_amount',
       key: 'total_amount',
-      width: 150,
+      width: 120,
       render: (amount) => (
         <span style={{ fontWeight: 'bold', color: '#dc2626' }}>
           Rs. {parseFloat(amount).toFixed(2)}
@@ -205,7 +210,7 @@ const SalesHistory = () => {
       title: 'Payment',
       dataIndex: 'payment_status',
       key: 'payment_status',
-      width: 130,
+      width: 100,
       render: (status) => (
         <Tag color={
           status === 'completed' ? 'green' :
@@ -219,24 +224,27 @@ const SalesHistory = () => {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
-      width: 120,
-      render: (status) => (
-        <Tag color={
-          status === 'completed' ? 'success' :
-          status === 'reserved' ? 'processing' :
-          status === 'returned' ? 'warning' : 'default'
-        }>
-          {status?.toUpperCase()}
-        </Tag>
-      )
+      width: 100,
+      render: (status) => {
+        const displayStatus = (!status || status === 'reserved') ? 'PENDING' : status.toUpperCase();
+        return (
+          <Tag color={
+            status === 'completed' ? 'success' :
+            (!status || status === 'reserved') ? 'processing' :
+            status === 'returned' ? 'warning' : 'default'
+          }>
+            {displayStatus}
+          </Tag>
+        );
+      }
     },
     {
       title: 'Actions',
       key: 'actions',
-      width: 180,
+      width: 150,
       fixed: 'right',
       render: (_, record) => (
-        <Space>
+        <Space size="small">
           <Button 
             type="link" 
             size="small" 
@@ -356,8 +364,8 @@ const SalesHistory = () => {
             dataSource={sales}
             rowKey="id"
             loading={loading}
-            scroll={{ x: 1400 }}
-            size="middle"
+            scroll={{ x: 1100 }}
+            size="small"
             pagination={{
               pageSize: 15,
               showTotal: (total) => `Total ${total} sales`,
@@ -420,9 +428,9 @@ const SalesHistory = () => {
               <Descriptions.Item label="Status" span={2}>
                 <Tag color={
                   selectedSale.status === 'completed' ? 'success' :
-                  selectedSale.status === 'reserved' ? 'processing' : 'default'
+                  (!selectedSale.status || selectedSale.status === 'reserved') ? 'processing' : 'default'
                 }>
-                  {selectedSale.status?.toUpperCase()}
+                  {(!selectedSale.status || selectedSale.status === 'reserved') ? 'PENDING' : selectedSale.status?.toUpperCase()}
                 </Tag>
               </Descriptions.Item>
             </Descriptions>
@@ -530,7 +538,31 @@ const SalesHistory = () => {
             key="print"
             type="primary"
             icon={<PrinterOutlined />}
-            onClick={() => window.print()}
+            onClick={() => {
+              const printWindow = window.open('', '_blank');
+              const receiptContent = document.querySelector('.receipt-print-content');
+              if (receiptContent && printWindow) {
+                printWindow.document.write(`
+                  <html>
+                    <head>
+                      <title>Receipt - #${selectedSale?.sale_id || selectedSale?.id}</title>
+                      <style>
+                        body { font-family: monospace; margin: 20px; }
+                        @media print {
+                          body { margin: 0; }
+                          .no-print { display: none; }
+                        }
+                      </style>
+                    </head>
+                    <body>
+                      ${receiptContent.innerHTML}
+                    </body>
+                  </html>
+                `);
+                printWindow.document.close();
+                printWindow.print();
+              }
+            }}
             style={{ backgroundColor: '#dc2626', borderColor: '#dc2626' }}
           >
             Print Receipt

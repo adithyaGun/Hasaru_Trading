@@ -45,49 +45,66 @@ const MyOrders = () => {
       const response = await api.get('/sales/online/my-orders');
       // Backend returns { success, message, data: { orders, pagination } }
       const ordersData = response.data?.data?.orders || [];
-      setOrders(ordersData);
+      
+      // Map new schema fields to expected format
+      const mappedOrders = ordersData.map(order => ({
+        ...order,
+        order_number: `ONL-${String(order.id).padStart(6, '0')}`,
+        order_date: order.sale_date || order.created_at,
+        shipping_address: extractShippingAddress(order.notes),
+        // Map status: 'reserved' -> 'pending', keep others as is
+        display_status: order.status === 'reserved' ? 'pending' : order.status
+      }));
+      
+      setOrders(mappedOrders);
     } catch (error) {
       console.error('Failed to fetch orders:', error);
       message.error('Failed to load orders');
-      // Use mock data for demonstration
-      setOrders(generateMockOrders());
+      setOrders([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const generateMockOrders = () => {
-    return [
-      {
-        id: 1,
-        order_number: 'ORD-2026-001',
-        created_at: new Date().toISOString(),
-        total_amount: 245.50,
-        status: 'processing',
-        payment_status: 'paid',
-        shipping_address: '123 Main St, City, State 12345',
-        items: [
-          { product_name: 'Michelin Tire', quantity: 2, price: 100 }
-        ]
-      },
-      {
-        id: 2,
-        order_number: 'ORD-2026-002',
-        created_at: new Date(Date.now() - 7 * 86400000).toISOString(),
-        total_amount: 380.00,
-        status: 'completed',
-        payment_status: 'paid',
-        shipping_address: '456 Oak Ave, City, State 12345',
-        items: [
-          { product_name: 'Car Battery', quantity: 1, price: 380 }
-        ]
-      }
-    ];
+  const extractShippingAddress = (notes) => {
+    if (!notes) return 'N/A';
+    
+    // Extract shipping address from notes
+    const match = notes.match(/Shipping Address:\s*(.+?)(?:\n|$)/);
+    if (match && match[1]) {
+      // Remove quotes if present
+      return match[1].replace(/^["']|["']$/g, '').trim();
+    }
+    
+    return notes.split('\n')[0] || 'N/A';
   };
 
   const handleViewDetails = async (order) => {
-    setViewingOrder(order);
-    setDetailsModalVisible(true);
+    try {
+      // Fetch full order details with items
+      const response = await api.get(`/sales/online/orders/${order.id}`);
+      const fullOrder = response.data?.data || order;
+      
+      // Map the full order with display fields
+      const mappedOrder = {
+        ...fullOrder,
+        order_number: `ONL-${String(fullOrder.id).padStart(6, '0')}`,
+        order_date: fullOrder.sale_date || fullOrder.created_at,
+        shipping_address: extractShippingAddress(fullOrder.notes),
+        display_status: fullOrder.status === 'reserved' ? 'pending' : fullOrder.status
+      };
+      
+      setViewingOrder(mappedOrder);
+      setDetailsModalVisible(true);
+    } catch (error) {
+      console.error('Failed to fetch order details:', error);
+      // Fallback to basic order data
+      setViewingOrder({
+        ...order,
+        items: order.items || []
+      });
+      setDetailsModalVisible(true);
+    }
   };
 
   const getStatusColor = (status) => {
@@ -132,20 +149,20 @@ const MyOrders = () => {
     },
     {
       title: 'Date',
-      dataIndex: 'created_at',
-      key: 'created_at',
+      dataIndex: 'order_date',
+      key: 'order_date',
       render: (date) => new Date(date).toLocaleDateString(),
     },
     {
       title: 'Total Amount',
       dataIndex: 'total_amount',
       key: 'total_amount',
-      render: (amount) => <strong>${parseFloat(amount).toFixed(2)}</strong>,
+      render: (amount) => <strong>Rs. {parseFloat(amount).toFixed(2)}</strong>,
     },
     {
       title: 'Status',
-      dataIndex: 'status',
-      key: 'status',
+      dataIndex: 'display_status',
+      key: 'display_status',
       render: (status) => (
         <Tag color={getStatusColor(status)} icon={getStatusIcon(status)}>
           {status?.toUpperCase() || 'N/A'}
@@ -170,9 +187,9 @@ const MyOrders = () => {
 
   const statsData = {
     total: orders.length,
-    pending: orders.filter(o => o.status === 'pending').length,
-    processing: orders.filter(o => o.status === 'processing').length,
-    completed: orders.filter(o => o.status === 'completed').length
+    pending: orders.filter(o => o.display_status === 'pending').length,
+    processing: orders.filter(o => o.display_status === 'processing').length,
+    completed: orders.filter(o => o.display_status === 'completed').length
   };
 
   return (
@@ -271,10 +288,10 @@ const MyOrders = () => {
         {viewingOrder && (
           <>
             {/* Order Progress */}
-            {viewingOrder.status !== 'cancelled' && (
+            {viewingOrder.display_status !== 'cancelled' && (
               <Card className="mb-4 bg-gradient-to-r from-red-50 to-red-100">
                 <Steps
-                  current={getOrderProgress(viewingOrder.status)}
+                  current={getOrderProgress(viewingOrder.display_status)}
                   items={[
                     {
                       title: 'Pending',
@@ -297,7 +314,7 @@ const MyOrders = () => {
               </Card>
             )}
 
-            {viewingOrder.status === 'cancelled' && (
+            {viewingOrder.display_status === 'cancelled' && (
               <Card className="mb-4 bg-red-50">
                 <div className="text-center">
                   <CloseCircleOutlined style={{ fontSize: '48px', color: '#f5222d' }} />
@@ -312,11 +329,11 @@ const MyOrders = () => {
                 <strong>{viewingOrder.order_number}</strong>
               </Descriptions.Item>
               <Descriptions.Item label="Order Date">
-                {new Date(viewingOrder.created_at).toLocaleString()}
+                {new Date(viewingOrder.order_date).toLocaleString()}
               </Descriptions.Item>
               <Descriptions.Item label="Status">
-                <Tag color={getStatusColor(viewingOrder.status)} icon={getStatusIcon(viewingOrder.status)}>
-                  {viewingOrder.status?.toUpperCase() || 'N/A'}
+                <Tag color={getStatusColor(viewingOrder.display_status)} icon={getStatusIcon(viewingOrder.display_status)}>
+                  {viewingOrder.display_status?.toUpperCase() || 'N/A'}
                 </Tag>
               </Descriptions.Item>
               <Descriptions.Item label="Payment Status">
@@ -325,7 +342,7 @@ const MyOrders = () => {
                 </Tag>
               </Descriptions.Item>
               <Descriptions.Item label="Payment Method">
-                {viewingOrder.payment_method || 'Online'}
+                {viewingOrder.payment_method?.replace(/_/g, ' ').toUpperCase() || 'COD'}
               </Descriptions.Item>
               <Descriptions.Item label="Shipping Address" span={2}>
                 {viewingOrder.shipping_address}
@@ -351,20 +368,21 @@ const MyOrders = () => {
                   },
                   {
                     title: 'Unit Price',
-                    dataIndex: 'price',
-                    key: 'price',
-                    render: (price) => `$${parseFloat(price).toFixed(2)}`,
+                    dataIndex: 'unit_price',
+                    key: 'unit_price',
+                    render: (price) => `Rs. ${parseFloat(price || 0).toFixed(2)}`,
                   },
                   {
                     title: 'Total',
-                    key: 'total',
-                    render: (_, record) => 
-                      `$${(record.quantity * record.price).toFixed(2)}`,
+                    dataIndex: 'subtotal',
+                    key: 'subtotal',
+                    render: (subtotal, record) => 
+                      `Rs. ${parseFloat(subtotal || (record.quantity * (record.unit_price || 0))).toFixed(2)}`,
                   },
                 ]}
                 summary={(pageData) => {
                   const total = pageData.reduce(
-                    (sum, item) => sum + (item.quantity * item.price),
+                    (sum, item) => sum + parseFloat(item.subtotal || (item.quantity * (item.unit_price || 0))),
                     0
                   );
                   return (
@@ -375,7 +393,7 @@ const MyOrders = () => {
                         </Table.Summary.Cell>
                         <Table.Summary.Cell index={1}>
                           <strong style={{ color: '#dc2626', fontSize: '16px' }}>
-                            ${total.toFixed(2)}
+                            Rs. {total.toFixed(2)}
                           </strong>
                         </Table.Summary.Cell>
                       </Table.Summary.Row>
@@ -391,32 +409,32 @@ const MyOrders = () => {
                 <Timeline.Item color="green" dot={<CheckCircleOutlined />}>
                   <div><strong>Order Placed</strong></div>
                   <div className="text-gray-500 text-sm">
-                    {new Date(viewingOrder.created_at).toLocaleString()}
+                    {new Date(viewingOrder.order_date).toLocaleString()}
                   </div>
                 </Timeline.Item>
                 
-                {viewingOrder.status !== 'pending' && viewingOrder.status !== 'cancelled' && (
+                {viewingOrder.display_status !== 'pending' && viewingOrder.display_status !== 'cancelled' && (
                   <Timeline.Item color="blue" dot={<ShoppingOutlined />}>
                     <div><strong>Processing Started</strong></div>
                     <div className="text-gray-500 text-sm">Your order is being prepared</div>
                   </Timeline.Item>
                 )}
                 
-                {(viewingOrder.status === 'shipped' || viewingOrder.status === 'completed') && (
+                {(viewingOrder.display_status === 'shipped' || viewingOrder.display_status === 'completed') && (
                   <Timeline.Item color="cyan" dot={<TruckOutlined />}>
                     <div><strong>Order Shipped</strong></div>
                     <div className="text-gray-500 text-sm">Your order is on the way</div>
                   </Timeline.Item>
                 )}
                 
-                {viewingOrder.status === 'completed' && (
+                {viewingOrder.display_status === 'completed' && (
                   <Timeline.Item color="green" dot={<CheckCircleOutlined />}>
                     <div><strong>Order Completed</strong></div>
                     <div className="text-gray-500 text-sm">Your order has been delivered</div>
                   </Timeline.Item>
                 )}
                 
-                {viewingOrder.status === 'cancelled' && (
+                {viewingOrder.display_status === 'cancelled' && (
                   <Timeline.Item color="red" dot={<CloseCircleOutlined />}>
                     <div><strong>Order Cancelled</strong></div>
                     <div className="text-gray-500 text-sm">This order has been cancelled</div>

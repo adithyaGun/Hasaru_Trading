@@ -148,13 +148,13 @@ class AlertService {
     const [pendingOrders] = await pool.query(
       `SELECT 
         id,
-        order_number,
         customer_id,
         created_at,
         status,
         total_amount
-       FROM online_sales
-       WHERE status IN ('pending', 'paid')
+       FROM sales
+       WHERE channel = 'online'
+       AND status IN ('reserved', 'pending')
        ORDER BY created_at DESC
        LIMIT 5`
     );

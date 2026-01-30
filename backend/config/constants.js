@@ -22,11 +22,12 @@ module.exports = {
     REFUNDED: 'refunded'
   },
 
-  // Payment methods for OTC
+  // Payment methods
   PAYMENT_METHODS: {
     CASH: 'cash',
     CARD: 'card',
-    BANK_TRANSFER: 'bank_transfer'
+    BANK_TRANSFER: 'bank_transfer',
+    CASH_ON_DELIVERY: 'cash_on_delivery'
   },
 
   // Purchase order statuses
@@ -42,14 +43,15 @@ module.exports = {
     PURCHASE: 'purchase',
     ONLINE_SALE: 'online_sale',
     OTC_SALE: 'otc_sale',
+    POS_SALE: 'pos_sale',
     ADJUSTMENT: 'adjustment',
     RETURN: 'return'
   },
 
-  // Sale types
-  SALE_TYPES: {
+  // Sales channels (replaces old SALE_TYPES)
+  SALES_CHANNELS: {
     ONLINE: 'online',
-    OTC: 'otc'
+    POS: 'pos'
   },
 
   // Alert levels

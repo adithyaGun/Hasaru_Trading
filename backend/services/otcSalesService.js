@@ -1,7 +1,7 @@
 const { pool } = require('../config/db');
 const { AppError } = require('../middleware/errorHandler');
 const { generateOrderNumber, calculateDiscount, getPaginationParams } = require('../utils/helpers');
-const { PAYMENT_METHODS, TRANSACTION_TYPES, SALE_TYPES } = require('../config/constants');
+const { PAYMENT_METHODS, TRANSACTION_TYPES } = require('../config/constants');
 const stockService = require('./stockService');
 
 class OTCSalesService {
@@ -14,12 +14,6 @@ class OTCSalesService {
     const connection = await pool.getConnection();
     try {
       await connection.beginTransaction();
-
-      // Generate invoice number
-      const [lastInvoice] = await connection.query(
-        'SELECT id FROM otc_sales ORDER BY id DESC LIMIT 1'
-      );
-      const invoice_number = generateOrderNumber('INV', lastInvoice[0]?.id || 0);
 
       // Fetch products and calculate totals
       let subtotal = 0;
@@ -57,7 +51,7 @@ class OTCSalesService {
           [product.id]
         );
 
-        const itemTotal = product.selling_price * item.quantity;
+        const itemTotal = parseFloat(product.selling_price) * parseInt(item.quantity);
         let itemDiscount = 0;
 
         if (promotions.length > 0) {
@@ -66,17 +60,17 @@ class OTCSalesService {
             promotions[0].discount_type,
             promotions[0].discount_value
           );
-          discount_amount += itemDiscount;
+          discount_amount += parseFloat(itemDiscount) || 0;
         }
 
         subtotal += itemTotal;
 
         saleItems.push({
           product_id: product.id,
-          quantity: item.quantity,
-          unit_price: product.selling_price,
-          discount_amount: itemDiscount,
-          total_price: itemTotal - itemDiscount
+          quantity: parseInt(item.quantity) || 0,
+          unit_price: parseFloat(product.selling_price) || 0,
+          discount_amount: parseFloat(itemDiscount) || 0,
+          total_price: parseFloat(itemTotal - itemDiscount) || 0
         });
       }
 
@@ -89,43 +83,58 @@ class OTCSalesService {
 
       const change_amount = amount_paid - total_amount;
 
-      // Insert OTC sale
+      // Prepare notes with customer info and payment details
+      let saleNotes = '';
+      if (customer_name || customer_phone) {
+        saleNotes += `Customer: ${customer_name || 'Walk-in'}${customer_phone ? ' | Phone: ' + customer_phone : ''}\n`;
+      }
+      saleNotes += `Paid: Rs. ${parseFloat(amount_paid).toFixed(2)} | Change: Rs. ${parseFloat(change_amount).toFixed(2)}`;
+      if (notes) {
+        saleNotes += `\n${notes}`;
+      }
+
+      // Insert into unified sales table
       const [result] = await connection.query(
-        `INSERT INTO otc_sales 
-         (invoice_number, sales_staff_id, customer_name, customer_phone, payment_method,
-          subtotal, discount_amount, total_amount, amount_paid, change_amount, notes)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO sales 
+         (customer_id, channel, sale_date, subtotal, discount, total_amount,
+          payment_method, payment_status, status, notes, created_by)
+         VALUES (NULL, 'pos', NOW(), ?, ?, ?, ?, 'completed', 'completed', ?, ?)`,
         [
-          invoice_number,
-          salesStaffId,
-          customer_name,
-          customer_phone,
+          parseFloat(subtotal) || 0,
+          parseFloat(discount_amount) || 0,
+          parseFloat(total_amount) || 0,
           payment_method,
-          subtotal,
-          discount_amount,
-          total_amount,
-          amount_paid,
-          change_amount,
-          notes
+          saleNotes,
+          salesStaffId
         ]
       );
 
       const saleId = result.insertId;
 
-      // Insert sale items
+      // Insert sale items with FIFO batch tracking
       for (const saleItem of saleItems) {
+        // Get first available batch for the product (FIFO)
+        const [batches] = await connection.query(
+          `SELECT id FROM product_batches 
+           WHERE product_id = ? AND quantity_remaining > 0 AND is_active = 1
+           ORDER BY received_date ASC
+           LIMIT 1`,
+          [saleItem.product_id]
+        );
+
+        const batchId = batches.length > 0 ? batches[0].id : null;
+
         await connection.query(
-          `INSERT INTO sale_items 
-           (sale_type, sale_id, product_id, quantity, unit_price, discount_amount, total_price)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO sales_items 
+           (sale_id, batch_id, product_id, quantity, unit_price, subtotal)
+           VALUES (?, ?, ?, ?, ?, ?)`,
           [
-            SALE_TYPES.OTC,
             saleId,
+            batchId,
             saleItem.product_id,
-            saleItem.quantity,
-            saleItem.unit_price,
-            saleItem.discount_amount,
-            saleItem.total_price
+            parseInt(saleItem.quantity) || 0,
+            parseFloat(saleItem.unit_price) || 0,
+            parseFloat(saleItem.total_price) || 0
           ]
         );
       }
@@ -162,32 +171,32 @@ class OTCSalesService {
 
     let query = `
       SELECT 
-        o.*,
+        s.*,
         u.name as sales_staff_name
-      FROM otc_sales o
-      JOIN users u ON o.sales_staff_id = u.id
-      WHERE 1=1
+      FROM sales s
+      LEFT JOIN users u ON s.created_by = u.id
+      WHERE s.channel = 'pos'
     `;
 
     const params = [];
 
     if (filters.sales_staff_id) {
-      query += ' AND o.sales_staff_id = ?';
+      query += ' AND s.created_by = ?';
       params.push(filters.sales_staff_id);
     }
 
     if (filters.payment_method) {
-      query += ' AND o.payment_method = ?';
+      query += ' AND s.payment_method = ?';
       params.push(filters.payment_method);
     }
 
     if (filters.date_from) {
-      query += ' AND DATE(o.sale_date) >= ?';
+      query += ' AND DATE(s.sale_date) >= ?';
       params.push(filters.date_from);
     }
 
     if (filters.date_to) {
-      query += ' AND DATE(o.sale_date) <= ?';
+      query += ' AND DATE(s.sale_date) <= ?';
       params.push(filters.date_to);
     }
 
@@ -196,7 +205,7 @@ class OTCSalesService {
     const [countResult] = await pool.query(countQuery, params);
     const total = countResult[0].total;
 
-    query += ' ORDER BY o.sale_date DESC LIMIT ? OFFSET ?';
+    query += ' ORDER BY s.sale_date DESC LIMIT ? OFFSET ?';
     params.push(parsedLimit, offset);
 
     const [sales] = await pool.query(query, params);
@@ -218,11 +227,11 @@ class OTCSalesService {
   async getSaleById(id) {
     const [sales] = await pool.query(
       `SELECT 
-        o.*,
+        s.*,
         u.name as sales_staff_name
-       FROM otc_sales o
-       JOIN users u ON o.sales_staff_id = u.id
-       WHERE o.id = ?`,
+       FROM sales s
+       LEFT JOIN users u ON s.created_by = u.id
+       WHERE s.id = ? AND s.channel = 'pos'`,
       [id]
     );
 
@@ -238,10 +247,10 @@ class OTCSalesService {
         si.*,
         p.name as product_name,
         p.sku
-       FROM sale_items si
+       FROM sales_items si
        JOIN products p ON si.product_id = p.id
-       WHERE si.sale_type = ? AND si.sale_id = ?`,
-      [SALE_TYPES.OTC, id]
+       WHERE si.sale_id = ?`,
+      [id]
     );
 
     sale.items = items;
@@ -257,7 +266,7 @@ class OTCSalesService {
 
     // Format invoice data
     const invoice = {
-      invoice_number: sale.invoice_number,
+      invoice_number: `INV-${String(sale.id).padStart(6, '0')}`,
       date: new Date(sale.sale_date).toLocaleString(),
       customer: {
         name: sale.customer_name || 'Walk-in Customer',
@@ -269,16 +278,16 @@ class OTCSalesService {
         sku: item.sku,
         quantity: item.quantity,
         unit_price: parseFloat(item.unit_price).toFixed(2),
-        discount: parseFloat(item.discount_amount).toFixed(2),
-        total: parseFloat(item.total_price).toFixed(2)
+        discount: '0.00',
+        total: parseFloat(item.subtotal).toFixed(2)
       })),
       payment: {
-        method: sale.payment_method.toUpperCase(),
+        method: sale.payment_method ? sale.payment_method.toUpperCase() : 'CASH',
         subtotal: parseFloat(sale.subtotal).toFixed(2),
-        discount: parseFloat(sale.discount_amount).toFixed(2),
+        discount: parseFloat(sale.discount).toFixed(2),
         total: parseFloat(sale.total_amount).toFixed(2),
-        paid: parseFloat(sale.amount_paid).toFixed(2),
-        change: parseFloat(sale.change_amount).toFixed(2)
+        paid: parseFloat(sale.total_amount).toFixed(2),
+        change: '0.00'
       },
       notes: sale.notes
     };

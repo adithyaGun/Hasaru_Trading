@@ -52,54 +52,42 @@ const OnlineOrders = () => {
     setLoading(true);
     try {
       const response = await api.get('/sales?channel=online');
-      // Backend returns { success, message, data: { sales, pagination } }
-      const ordersData = response.data?.data?.sales || [];
-      setOrders(ordersData);
-      calculateStats(ordersData);
+      // Backend returns { success, data: [...orders], count, pagination }
+      const ordersData = response.data?.data || [];
+      
+      // Map to expected format with order_number and extracted fields
+      const mappedOrders = ordersData.map(order => ({
+        ...order,
+        order_number: `ONL-${String(order.id).padStart(6, '0')}`,
+        order_date: order.sale_date || order.created_at,
+        shipping_address: extractShippingAddress(order.notes),
+        // Map status: empty string, 'reserved', or null becomes 'pending'
+        display_status: (!order.status || order.status === 'reserved') ? 'pending' : order.status
+      }));
+      
+      setOrders(mappedOrders);
+      calculateStats(mappedOrders);
     } catch (error) {
       message.error('Failed to load orders');
       console.error('Error fetching orders:', error);
-      // Use mock data on error
-      const mockOrders = generateMockOrders();
-      setOrders(mockOrders);
-      calculateStats(mockOrders);
+      setOrders([]);
+      calculateStats([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const generateMockOrders = () => {
-    return [
-      {
-        id: 1,
-        order_number: 'ORD-2026-001',
-        customer_name: 'John Doe',
-        customer_email: 'john@example.com',
-        customer_phone: '+1234567890',
-        total_amount: 245.50,
-        status: 'pending',
-        payment_status: 'paid',
-        created_at: new Date().toISOString(),
-        items: [
-          { product_name: 'Michelin Tire', quantity: 2, price: 100 },
-          { product_name: 'Oil Filter', quantity: 1, price: 45.50 }
-        ]
-      },
-      {
-        id: 2,
-        order_number: 'ORD-2026-002',
-        customer_name: 'Jane Smith',
-        customer_email: 'jane@example.com',
-        customer_phone: '+1234567891',
-        total_amount: 380.00,
-        status: 'processing',
-        payment_status: 'paid',
-        created_at: new Date(Date.now() - 86400000).toISOString(),
-        items: [
-          { product_name: 'Car Battery', quantity: 1, price: 380 }
-        ]
-      }
-    ];
+  const extractShippingAddress = (notes) => {
+    if (!notes) return 'N/A';
+    
+    // Extract shipping address from notes
+    const match = notes.match(/Shipping Address:\s*(.+?)(?:\n|$)/i);
+    if (match && match[1]) {
+      // Remove quotes if present
+      return match[1].replace(/^["']|["']$/g, '').trim();
+    }
+    
+    return notes.split('\n')[0] || 'N/A';
   };
 
   const calculateStats = (ordersData) => {
@@ -108,7 +96,8 @@ const OnlineOrders = () => {
       return;
     }
     const total = ordersData.length;
-    const pending = ordersData.filter(o => o.status === 'pending').length;
+    // Count 'reserved' as 'pending' for stats
+    const pending = ordersData.filter(o => o.status === 'pending' || o.status === 'reserved').length;
     const processing = ordersData.filter(o => o.status === 'processing').length;
     const completed = ordersData.filter(o => o.status === 'completed').length;
     const cancelled = ordersData.filter(o => o.status === 'cancelled').length;
@@ -116,13 +105,36 @@ const OnlineOrders = () => {
   };
 
   const handleView = async (record) => {
-    setViewingOrder(record);
-    setDetailsModalVisible(true);
+    try {
+      // Fetch full order details with items
+      const response = await api.get(`/sales/${record.id}`);
+      const fullOrder = response.data?.data || record;
+      
+      // Map the full order with display fields
+      const mappedOrder = {
+        ...fullOrder,
+        order_number: `ONL-${String(fullOrder.id).padStart(6, '0')}`,
+        order_date: fullOrder.sale_date || fullOrder.created_at,
+        shipping_address: extractShippingAddress(fullOrder.notes),
+        display_status: (!fullOrder.status || fullOrder.status === 'reserved') ? 'pending' : fullOrder.status
+      };
+      
+      setViewingOrder(mappedOrder);
+      setDetailsModalVisible(true);
+    } catch (error) {
+      console.error('Failed to fetch order details:', error);
+      // Fallback to record data
+      setViewingOrder({
+        ...record,
+        items: record.items || []
+      });
+      setDetailsModalVisible(true);
+    }
   };
 
   const handleUpdateStatus = async (orderId, newStatus) => {
     try {
-      await api.put(`/sales/online/${orderId}`, { status: newStatus });
+      await api.put(`/sales/online/orders/${orderId}/status`, { status: newStatus });
       message.success(`Order status updated to ${newStatus}`);
       fetchOrders();
     } catch (error) {
@@ -155,7 +167,7 @@ const OnlineOrders = () => {
     const matchesSearch = 
       order.order_number?.toLowerCase().includes(searchText.toLowerCase()) ||
       order.customer_name?.toLowerCase().includes(searchText.toLowerCase());
-    const matchesStatus = filterStatus === 'all' || order.status === filterStatus;
+    const matchesStatus = filterStatus === 'all' || order.display_status === filterStatus;
     return matchesSearch && matchesStatus;
   });
 
@@ -174,8 +186,8 @@ const OnlineOrders = () => {
     },
     {
       title: 'Date',
-      dataIndex: 'created_at',
-      key: 'created_at',
+      dataIndex: 'order_date',
+      key: 'order_date',
       width: 120,
       render: (date) => new Date(date).toLocaleDateString(),
     },
@@ -184,7 +196,7 @@ const OnlineOrders = () => {
       dataIndex: 'total_amount',
       key: 'total_amount',
       width: 100,
-      render: (amount) => `$${parseFloat(amount).toFixed(2)}`,
+      render: (amount) => `Rs. ${parseFloat(amount).toFixed(2)}`,
     },
     {
       title: 'Payment',
@@ -199,8 +211,8 @@ const OnlineOrders = () => {
     },
     {
       title: 'Status',
-      dataIndex: 'status',
-      key: 'status',
+      dataIndex: 'display_status',
+      key: 'display_status',
       width: 110,
       render: (status) => (
         <Tag color={getStatusColor(status)}>
@@ -221,7 +233,7 @@ const OnlineOrders = () => {
           >
             View
           </Button>
-          {record.status === 'pending' && (
+          {record.display_status === 'pending' && (
             <Popconfirm
               title="Start processing this order?"
               onConfirm={() => handleUpdateStatus(record.id, 'processing')}
@@ -233,7 +245,7 @@ const OnlineOrders = () => {
               </Button>
             </Popconfirm>
           )}
-          {record.status === 'processing' && (
+          {record.display_status === 'processing' && (
             <Popconfirm
               title="Mark this order as shipped?"
               onConfirm={() => handleUpdateStatus(record.id, 'shipped')}
@@ -245,7 +257,7 @@ const OnlineOrders = () => {
               </Button>
             </Popconfirm>
           )}
-          {record.status === 'shipped' && (
+          {record.display_status === 'shipped' && (
             <Popconfirm
               title="Mark this order as completed?"
               onConfirm={() => handleUpdateStatus(record.id, 'completed')}
@@ -257,7 +269,7 @@ const OnlineOrders = () => {
               </Button>
             </Popconfirm>
           )}
-          {(record.status === 'pending' || record.status === 'processing') && (
+          {(record.display_status === 'pending' || record.display_status === 'processing') && (
             <Popconfirm
               title="Cancel this order?"
               onConfirm={() => handleUpdateStatus(record.id, 'cancelled')}
@@ -405,8 +417,8 @@ const OnlineOrders = () => {
                 {viewingOrder.customer_name}
               </Descriptions.Item>
               <Descriptions.Item label="Order Status">
-                <Tag color={getStatusColor(viewingOrder.status)}>
-                  {viewingOrder.status?.toUpperCase() || 'N/A'}
+                <Tag color={getStatusColor(viewingOrder.display_status)}>
+                  {viewingOrder.display_status?.toUpperCase() || 'N/A'}
                 </Tag>
               </Descriptions.Item>
               <Descriptions.Item label="Email">
@@ -421,10 +433,10 @@ const OnlineOrders = () => {
                 </Tag>
               </Descriptions.Item>
               <Descriptions.Item label="Payment Method">
-                {viewingOrder.payment_method || 'N/A'}
+                {viewingOrder.payment_method?.replace(/_/g, ' ').toUpperCase() || 'N/A'}
               </Descriptions.Item>
               <Descriptions.Item label="Order Date" span={2}>
-                {new Date(viewingOrder.created_at).toLocaleString()}
+                {new Date(viewingOrder.order_date).toLocaleString()}
               </Descriptions.Item>
               <Descriptions.Item label="Shipping Address" span={2}>
                 {viewingOrder.shipping_address || 'N/A'}
@@ -449,20 +461,21 @@ const OnlineOrders = () => {
                   },
                   {
                     title: 'Unit Price',
-                    dataIndex: 'price',
-                    key: 'price',
-                    render: (price) => `$${parseFloat(price).toFixed(2)}`,
+                    dataIndex: 'unit_price',
+                    key: 'unit_price',
+                    render: (price) => `Rs. ${parseFloat(price || 0).toFixed(2)}`,
                   },
                   {
                     title: 'Total',
-                    key: 'total',
-                    render: (_, record) => 
-                      `$${(record.quantity * record.price).toFixed(2)}`,
+                    dataIndex: 'subtotal',
+                    key: 'subtotal',
+                    render: (subtotal, record) => 
+                      `Rs. ${parseFloat(subtotal || (record.quantity * (record.unit_price || 0))).toFixed(2)}`,
                   },
                 ]}
                 summary={(pageData) => {
                   const total = pageData.reduce(
-                    (sum, item) => sum + (item.quantity * item.price),
+                    (sum, item) => sum + parseFloat(item.subtotal || (item.quantity * (item.unit_price || 0))),
                     0
                   );
                   return (
@@ -473,7 +486,7 @@ const OnlineOrders = () => {
                         </Table.Summary.Cell>
                         <Table.Summary.Cell index={1}>
                           <strong style={{ color: '#dc2626' }}>
-                            ${total.toFixed(2)}
+                            Rs. {total.toFixed(2)}
                           </strong>
                         </Table.Summary.Cell>
                       </Table.Summary.Row>
@@ -488,24 +501,24 @@ const OnlineOrders = () => {
                 <Timeline.Item color="green">
                   <strong>Order Placed</strong>
                   <br />
-                  {new Date(viewingOrder.created_at).toLocaleString()}
+                  {new Date(viewingOrder.order_date).toLocaleString()}
                 </Timeline.Item>
-                {viewingOrder.status !== 'pending' && (
+                {viewingOrder.display_status !== 'pending' && (
                   <Timeline.Item color="blue">
                     <strong>Processing Started</strong>
                   </Timeline.Item>
                 )}
-                {viewingOrder.status === 'shipped' && (
+                {viewingOrder.display_status === 'shipped' && (
                   <Timeline.Item color="cyan">
                     <strong>Order Shipped</strong>
                   </Timeline.Item>
                 )}
-                {viewingOrder.status === 'completed' && (
+                {viewingOrder.display_status === 'completed' && (
                   <Timeline.Item color="green">
                     <strong>Order Completed</strong>
                   </Timeline.Item>
                 )}
-                {viewingOrder.status === 'cancelled' && (
+                {viewingOrder.display_status === 'cancelled' && (
                   <Timeline.Item color="red">
                     <strong>Order Cancelled</strong>
                   </Timeline.Item>

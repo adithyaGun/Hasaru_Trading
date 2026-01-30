@@ -1,6 +1,5 @@
 const { pool } = require('../config/db');
 const { getDateRange } = require('../utils/helpers');
-const { SALE_TYPES } = require('../config/constants');
 
 class ReportService {
   /**
@@ -16,30 +15,32 @@ class ReportService {
       `SELECT 
         COUNT(*) as order_count,
         SUM(total_amount) as total_sales,
-        SUM(discount_amount) as total_discounts,
+        SUM(discount) as total_discounts,
         AVG(total_amount) as average_order_value
-       FROM online_sales
-       WHERE status != 'cancelled'
-       AND order_date BETWEEN ? AND ?`,
+       FROM sales
+       WHERE channel = 'online'
+       AND status != 'cancelled'
+       AND sale_date BETWEEN ? AND ?`,
       [dateRange.startDate, dateRange.endDate]
     );
 
-    // OTC sales
-    const [otcSales] = await pool.query(
+    // POS sales
+    const [posSales] = await pool.query(
       `SELECT 
         COUNT(*) as transaction_count,
         SUM(total_amount) as total_sales,
-        SUM(discount_amount) as total_discounts,
+        SUM(discount) as total_discounts,
         AVG(total_amount) as average_transaction_value
-       FROM otc_sales
-       WHERE sale_date BETWEEN ? AND ?`,
+       FROM sales
+       WHERE channel = 'pos'
+       AND sale_date BETWEEN ? AND ?`,
       [dateRange.startDate, dateRange.endDate]
     );
 
     // Combined totals
-    const totalOrders = onlineSales[0].order_count + otcSales[0].transaction_count;
-    const totalSales = parseFloat(onlineSales[0].total_sales || 0) + parseFloat(otcSales[0].total_sales || 0);
-    const totalDiscounts = parseFloat(onlineSales[0].total_discounts || 0) + parseFloat(otcSales[0].total_discounts || 0);
+    const totalOrders = onlineSales[0].order_count + posSales[0].transaction_count;
+    const totalSales = parseFloat(onlineSales[0].total_sales || 0) + parseFloat(posSales[0].total_sales || 0);
+    const totalDiscounts = parseFloat(onlineSales[0].total_discounts || 0) + parseFloat(posSales[0].total_discounts || 0);
 
     return {
       period,
@@ -50,11 +51,11 @@ class ReportService {
         total_discounts: parseFloat(onlineSales[0].total_discounts || 0).toFixed(2),
         average_order_value: parseFloat(onlineSales[0].average_order_value || 0).toFixed(2)
       },
-      otc_sales: {
-        transaction_count: otcSales[0].transaction_count,
-        total_sales: parseFloat(otcSales[0].total_sales || 0).toFixed(2),
-        total_discounts: parseFloat(otcSales[0].total_discounts || 0).toFixed(2),
-        average_transaction_value: parseFloat(otcSales[0].average_transaction_value || 0).toFixed(2)
+      pos_sales: {
+        transaction_count: posSales[0].transaction_count,
+        total_sales: parseFloat(posSales[0].total_sales || 0).toFixed(2),
+        total_discounts: parseFloat(posSales[0].total_discounts || 0).toFixed(2),
+        average_transaction_value: parseFloat(posSales[0].average_transaction_value || 0).toFixed(2)
       },
       combined: {
         total_orders: totalOrders,
@@ -77,22 +78,15 @@ class ReportService {
     const [salesData] = await pool.query(
       `SELECT 
         si.quantity,
-        si.total_price as revenue,
+        si.subtotal as revenue,
         p.purchase_price,
         (si.quantity * p.purchase_price) as cost
-       FROM sale_items si
+       FROM sales_items si
+       JOIN sales s ON si.sale_id = s.id
        JOIN products p ON si.product_id = p.id
-       WHERE (
-         (si.sale_type = 'online' AND si.sale_id IN (
-           SELECT id FROM online_sales 
-           WHERE status != 'cancelled' AND order_date BETWEEN ? AND ?
-         )) OR
-         (si.sale_type = 'otc' AND si.sale_id IN (
-           SELECT id FROM otc_sales 
-           WHERE sale_date BETWEEN ? AND ?
-         ))
-       )`,
-      [dateRange.startDate, dateRange.endDate, dateRange.startDate, dateRange.endDate]
+       WHERE s.status != 'cancelled'
+       AND s.sale_date BETWEEN ? AND ?`,
+      [dateRange.startDate, dateRange.endDate]
     );
 
     const totalRevenue = salesData.reduce((sum, row) => sum + parseFloat(row.revenue), 0);
@@ -150,22 +144,15 @@ class ReportService {
         p.category,
         COUNT(DISTINCT si.id) as items_sold,
         SUM(si.quantity) as total_quantity,
-        SUM(si.total_price) as total_revenue
-       FROM sale_items si
+        SUM(si.subtotal) as total_revenue
+       FROM sales_items si
+       JOIN sales s ON si.sale_id = s.id
        JOIN products p ON si.product_id = p.id
-       WHERE (
-         (si.sale_type = 'online' AND si.sale_id IN (
-           SELECT id FROM online_sales 
-           WHERE status != 'cancelled' AND order_date BETWEEN ? AND ?
-         )) OR
-         (si.sale_type = 'otc' AND si.sale_id IN (
-           SELECT id FROM otc_sales 
-           WHERE sale_date BETWEEN ? AND ?
-         ))
-       )
+       WHERE s.status != 'cancelled'
+       AND s.sale_date BETWEEN ? AND ?
        GROUP BY p.category
        ORDER BY total_revenue DESC`,
-      [dateRange.startDate, dateRange.endDate, dateRange.startDate, dateRange.endDate]
+      [dateRange.startDate, dateRange.endDate]
     );
 
     return {
@@ -191,21 +178,15 @@ class ReportService {
     const [data] = await pool.query(
       `SELECT 
         DATE(sale_date) as date,
-        sale_type,
+        channel as sale_type,
         COUNT(*) as transaction_count,
-        SUM(total_sales) as daily_total
-       FROM (
-         SELECT order_date as sale_date, 'online' as sale_type, total_amount as total_sales
-         FROM online_sales
-         WHERE status != 'cancelled' AND order_date BETWEEN ? AND ?
-         UNION ALL
-         SELECT sale_date, 'otc' as sale_type, total_amount as total_sales
-         FROM otc_sales
-         WHERE sale_date BETWEEN ? AND ?
-       ) combined_sales
-       GROUP BY DATE(sale_date), sale_type
-       ORDER BY date, sale_type`,
-      [dateRange.startDate, dateRange.endDate, dateRange.startDate, dateRange.endDate]
+        SUM(total_amount) as daily_total
+       FROM sales
+       WHERE status != 'cancelled'
+       AND sale_date BETWEEN ? AND ?
+       GROUP BY DATE(sale_date), channel
+       ORDER BY date, channel`,
+      [dateRange.startDate, dateRange.endDate]
     );
 
     return {

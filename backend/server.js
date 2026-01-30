@@ -20,6 +20,7 @@ const alertRoutes = require('./routes/alerts');
 const promotionRoutes = require('./routes/promotions');
 const batchRoutes = require('./routes/batches');
 const salesRoutes = require('./routes/sales');
+const onlineSalesRoutes = require('./routes/onlineSales');
 
 // Initialize Express app
 const app = express();
@@ -86,6 +87,7 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/alerts', alertRoutes);
 app.use('/api/promotions', promotionRoutes);
 app.use('/api/batches', batchRoutes);
+app.use('/api/sales/online', onlineSalesRoutes);
 app.use('/api/sales', salesRoutes);
 
 // ==========================================

@@ -1,7 +1,7 @@
 const { pool } = require('../config/db');
 const { AppError } = require('../middleware/errorHandler');
 const { generateOrderNumber, calculateDiscount, getPaginationParams } = require('../utils/helpers');
-const { ONLINE_ORDER_STATUS, PAYMENT_STATUS, TRANSACTION_TYPES, SALE_TYPES } = require('../config/constants');
+const { ONLINE_ORDER_STATUS, PAYMENT_STATUS, TRANSACTION_TYPES } = require('../config/constants');
 const stockService = require('./stockService');
 const emailService = require('./emailService');
 
@@ -96,29 +96,30 @@ class OnlineSalesService {
     let discount_amount = 0;
 
     items.forEach(item => {
+      const itemTotal = parseFloat(item.item_total) ||0;
       const promotion = promotions.find(p => p.product_id === item.product_id);
       if (promotion) {
         const itemDiscount = calculateDiscount(
-          item.item_total,
+          itemTotal,
           promotion.discount_type,
           promotion.discount_value
         );
-        discount_amount += itemDiscount;
-        item.discount = itemDiscount;
-        item.final_price = item.item_total - itemDiscount;
+        discount_amount += parseFloat(itemDiscount) || 0;
+        item.discount = parseFloat(itemDiscount) || 0;
+        item.final_price = itemTotal - (parseFloat(itemDiscount) || 0);
       } else {
         item.discount = 0;
-        item.final_price = item.item_total;
+        item.final_price = itemTotal;
       }
-      subtotal += item.item_total;
+      subtotal += itemTotal;
     });
 
     return {
       items,
       summary: {
-        subtotal,
-        discount_amount,
-        total: subtotal - discount_amount
+        subtotal: parseFloat(subtotal) || 0,
+        discount_amount: parseFloat(discount_amount) || 0,
+        total: parseFloat(subtotal - discount_amount) || 0
       }
     };
   }
@@ -182,48 +183,55 @@ class OnlineSalesService {
         throw new AppError('Cart is empty', 400);
       }
 
-      // Generate order number
-      const [lastOrder] = await connection.query(
-        'SELECT id FROM online_sales ORDER BY id DESC LIMIT 1'
-      );
-      const order_number = generateOrderNumber('ONL', lastOrder[0]?.id || 0);
+      // Combine shipping address and notes
+      const orderNotes = shipping_address 
+        ? `Shipping Address: ${shipping_address}${notes ? '\n\nNotes: ' + notes : ''}` 
+        : notes || null;
 
-      // Create order
-      const [orderResult] = await connection.query(
-        `INSERT INTO online_sales 
-         (order_number, customer_id, status, payment_status, payment_method, 
-          subtotal, discount_amount, total_amount, shipping_address, notes)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      // Create sale record using unified sales table
+      const [saleResult] = await connection.query(
+        `INSERT INTO sales 
+         (customer_id, channel, sale_date, subtotal, discount, total_amount, 
+          payment_method, payment_status, status, notes, created_by)
+         VALUES (?, 'online', NOW(), ?, ?, ?, ?, 'pending', 'reserved', ?, ?)`,
         [
-          order_number,
           customerId,
-          ONLINE_ORDER_STATUS.PENDING,
-          PAYMENT_STATUS.UNPAID,
+          parseFloat(cart.summary.subtotal) || 0,
+          parseFloat(cart.summary.discount_amount) || 0,
+          parseFloat(cart.summary.total) || 0,
           payment_method,
-          cart.summary.subtotal,
-          cart.summary.discount_amount,
-          cart.summary.total,
-          shipping_address,
-          notes
+          orderNotes,
+          customerId
         ]
       );
 
-      const orderId = orderResult.insertId;
+      const saleId = saleResult.insertId;
 
-      // Create sale items
+      // Create sale items using unified sales_items table
       for (const item of cart.items) {
+        // Get first available batch for the product (FIFO)
+        const [batches] = await connection.query(
+          `SELECT id, quantity_remaining 
+           FROM product_batches 
+           WHERE product_id = ? AND quantity_remaining > 0 AND is_active = 1
+           ORDER BY received_date ASC
+           LIMIT 1`,
+          [item.product_id]
+        );
+
+        const batchId = batches.length > 0 ? batches[0].id : null;
+
         await connection.query(
-          `INSERT INTO sale_items 
-           (sale_type, sale_id, product_id, quantity, unit_price, discount_amount, total_price)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO sales_items 
+           (sale_id, batch_id, product_id, quantity, unit_price, subtotal)
+           VALUES (?, ?, ?, ?, ?, ?)`,
           [
-            SALE_TYPES.ONLINE,
-            orderId,
+            saleId,
+            batchId,
             item.product_id,
-            item.quantity,
-            item.selling_price,
-            item.discount || 0,
-            item.final_price
+            parseInt(item.quantity) || 0,
+            parseFloat(item.selling_price) || 0,
+            parseFloat(item.final_price) || 0
           ]
         );
       }
@@ -236,7 +244,7 @@ class OnlineSalesService {
 
       await connection.commit();
 
-      const order = await this.getOrderById(orderId);
+      const order = await this.getOrderById(saleId);
 
       // Send confirmation email
       const [customers] = await pool.query(
@@ -262,7 +270,7 @@ class OnlineSalesService {
   async updateOrderStatus(orderId, status, userId) {
     const order = await this.getOrderById(orderId);
 
-    if (order.status === ONLINE_ORDER_STATUS.CANCELLED) {
+    if (order.status === 'cancelled') {
       throw new AppError('Cannot update cancelled order', 400);
     }
 
@@ -270,28 +278,19 @@ class OnlineSalesService {
     try {
       await connection.beginTransaction();
 
-      // If status is paid and was previously unpaid, deduct stock
-      if (status === ONLINE_ORDER_STATUS.PAID && order.payment_status === PAYMENT_STATUS.UNPAID) {
-        const stockUpdates = order.items.map(item => ({
-          product_id: item.product_id,
-          quantity_change: -item.quantity
-        }));
-
-        await stockService.updateStockBatch(
-          stockUpdates,
-          TRANSACTION_TYPES.ONLINE_SALE,
-          orderId,
-          userId
-        );
-
+      // If changing to completed and was previously reserved, we may need to update stock
+      // Note: For online orders in the unified system, stock should be reserved on checkout
+      // and completed on payment confirmation
+      if (status === 'completed' && order.payment_status === 'pending') {
+        // Update to completed and mark payment as completed
         await connection.query(
-          'UPDATE online_sales SET status = ?, payment_status = ? WHERE id = ?',
-          [status, PAYMENT_STATUS.PAID, orderId]
+          'UPDATE sales SET status = ?, payment_status = ? WHERE id = ?',
+          [status, 'completed', orderId]
         );
       } else {
         await connection.query(
-          'UPDATE online_sales SET status = ?, processed_by = ?, processed_date = NOW() WHERE id = ?',
-          [status, userId, orderId]
+          'UPDATE sales SET status = ? WHERE id = ?',
+          [status, orderId]
         );
       }
 
@@ -313,23 +312,23 @@ class OnlineSalesService {
 
     let query = `
       SELECT 
-        o.*,
+        s.*,
         u.name as customer_name,
         u.email as customer_email
-      FROM online_sales o
-      JOIN users u ON o.customer_id = u.id
-      WHERE 1=1
+      FROM sales s
+      JOIN users u ON s.customer_id = u.id
+      WHERE s.channel = 'online'
     `;
 
     const params = [];
 
     if (filters.customer_id) {
-      query += ' AND o.customer_id = ?';
+      query += ' AND s.customer_id = ?';
       params.push(filters.customer_id);
     }
 
     if (filters.status) {
-      query += ' AND o.status = ?';
+      query += ' AND s.status = ?';
       params.push(filters.status);
     }
 
@@ -338,7 +337,7 @@ class OnlineSalesService {
     const [countResult] = await pool.query(countQuery, params);
     const total = countResult[0].total;
 
-    query += ' ORDER BY o.created_at DESC LIMIT ? OFFSET ?';
+    query += ' ORDER BY s.created_at DESC LIMIT ? OFFSET ?';
     params.push(parsedLimit, offset);
 
     const [orders] = await pool.query(query, params);
@@ -360,13 +359,13 @@ class OnlineSalesService {
   async getOrderById(id) {
     const [orders] = await pool.query(
       `SELECT 
-        o.*,
+        s.*,
         u.name as customer_name,
         u.email as customer_email,
         u.phone as customer_phone
-       FROM online_sales o
-       JOIN users u ON o.customer_id = u.id
-       WHERE o.id = ?`,
+       FROM sales s
+       JOIN users u ON s.customer_id = u.id
+       WHERE s.id = ? AND s.channel = 'online'`,
       [id]
     );
 
@@ -382,10 +381,10 @@ class OnlineSalesService {
         si.*,
         p.name as product_name,
         p.sku
-       FROM sale_items si
+       FROM sales_items si
        JOIN products p ON si.product_id = p.id
-       WHERE si.sale_type = ? AND si.sale_id = ?`,
-      [SALE_TYPES.ONLINE, id]
+       WHERE si.sale_id = ?`,
+      [id]
     );
 
     order.items = items;

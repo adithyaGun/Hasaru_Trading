@@ -19,7 +19,7 @@ const ReceiptPrint = ({ saleData }) => {
   } = saleData;
 
   return (
-    <div className="receipt-container" id="receipt-print">
+    <div className="receipt-container receipt-print-content" id="receipt-print">
       <style>
         {`
           @media print {
