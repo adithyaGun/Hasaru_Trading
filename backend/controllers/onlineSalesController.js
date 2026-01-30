@@ -55,6 +55,14 @@ exports.getMyOrders = asyncHandler(async (req, res) => {
 
 exports.updateOrderStatus = asyncHandler(async (req, res) => {
   const { status } = req.body;
+  
+  if (!status) {
+    return res.status(400).json({
+      success: false,
+      message: 'Status is required'
+    });
+  }
+  
   const order = await onlineSalesService.updateOrderStatus(req.params.id, status, req.user.id);
   res.json(successResponse(order, 'Order status updated successfully'));
 });

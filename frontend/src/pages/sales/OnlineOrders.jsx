@@ -134,12 +134,18 @@ const OnlineOrders = () => {
 
   const handleUpdateStatus = async (orderId, newStatus) => {
     try {
-      await api.put(`/sales/online/orders/${orderId}/status`, { status: newStatus });
-      message.success(`Order status updated to ${newStatus}`);
-      fetchOrders();
+      const response = await api.put(`/sales/online/orders/${orderId}/status`, { status: newStatus });
+      
+      if (response.data?.success) {
+        message.success(`Order status updated to ${newStatus}`);
+        fetchOrders();
+      } else {
+        message.error(response.data?.message || 'Failed to update order status');
+      }
     } catch (error) {
-      message.error('Failed to update order status');
-      console.error('Error updating order:', error);
+      const errorMsg = error.response?.data?.message || 'Failed to update order status';
+      message.error(errorMsg);
+      console.error('Error updating order:', error.response?.data || error);
     }
   };
 

@@ -54,6 +54,16 @@ module.exports = {
     POS: 'pos'
   },
 
+  // Sales statuses (unified schema)
+  SALES_STATUS: {
+    RESERVED: 'reserved',
+    PROCESSING: 'processing',
+    SHIPPED: 'shipped',
+    COMPLETED: 'completed',
+    RETURNED: 'returned',
+    CANCELLED: 'cancelled'
+  },
+
   // Alert levels
   ALERT_LEVELS: {
     WARNING: 'warning',

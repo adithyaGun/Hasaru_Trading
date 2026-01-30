@@ -268,6 +268,15 @@ class OnlineSalesService {
    * Update order status and handle stock deduction
    */
   async updateOrderStatus(orderId, status, userId) {
+    if (!status) {
+      throw new AppError('Status is required', 400);
+    }
+
+    const validStatuses = ['reserved', 'processing', 'shipped', 'completed', 'returned', 'cancelled'];
+    if (!validStatuses.includes(status)) {
+      throw new AppError(`Invalid status. Must be one of: ${validStatuses.join(', ')}`, 400);
+    }
+
     const order = await this.getOrderById(orderId);
 
     if (order.status === 'cancelled') {
@@ -278,19 +287,17 @@ class OnlineSalesService {
     try {
       await connection.beginTransaction();
 
-      // If changing to completed and was previously reserved, we may need to update stock
-      // Note: For online orders in the unified system, stock should be reserved on checkout
-      // and completed on payment confirmation
+      // Update the status
+      await connection.query(
+        'UPDATE sales SET status = ?, updated_at = NOW() WHERE id = ?',
+        [status, orderId]
+      );
+
+      // If marking as completed, also mark payment as completed if it was pending
       if (status === 'completed' && order.payment_status === 'pending') {
-        // Update to completed and mark payment as completed
         await connection.query(
-          'UPDATE sales SET status = ?, payment_status = ? WHERE id = ?',
-          [status, 'completed', orderId]
-        );
-      } else {
-        await connection.query(
-          'UPDATE sales SET status = ? WHERE id = ?',
-          [status, orderId]
+          'UPDATE sales SET payment_status = ? WHERE id = ?',
+          ['completed', orderId]
         );
       }
 

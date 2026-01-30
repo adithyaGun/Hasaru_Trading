@@ -1,6 +1,6 @@
 -- ============================================
--- TIRE & AUTO PARTS MANAGEMENT SYSTEM
--- Database Schema
+-- HASARU TRADING - TIRE & AUTO PARTS
+-- Database Schema - Final Version
 -- ============================================
 
 -- Drop and recreate database
@@ -146,141 +146,7 @@ CREATE TABLE purchase_items (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ============================================
--- 8. ONLINE SALES TABLE
--- ============================================
-CREATE TABLE online_sales (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    order_number VARCHAR(50) UNIQUE NOT NULL,
-    customer_id INT NOT NULL,
-    order_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    status ENUM('pending', 'paid', 'processing', 'delivered', 'cancelled') NOT NULL DEFAULT 'pending',
-    payment_status ENUM('unpaid', 'paid', 'refunded') NOT NULL DEFAULT 'unpaid',
-    payment_method VARCHAR(50),
-    subtotal DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
-    discount_amount DECIMAL(10, 2) DEFAULT 0.00,
-    tax_amount DECIMAL(10, 2) DEFAULT 0.00,
-    total_amount DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
-    shipping_address TEXT,
-    notes TEXT,
-    processed_by INT,
-    processed_date DATETIME,
-    delivered_date DATETIME,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (customer_id) REFERENCES users(id),
-    FOREIGN KEY (processed_by) REFERENCES users(id),
-    INDEX idx_order_number (order_number),
-    INDEX idx_customer (customer_id),
-    INDEX idx_status (status),
-    INDEX idx_payment_status (payment_status),
-    INDEX idx_order_date (order_date)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- ============================================
--- 9. OTC SALES TABLE (Over-the-Counter)
--- ============================================
-CREATE TABLE otc_sales (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    invoice_number VARCHAR(50) UNIQUE NOT NULL,
-    sales_staff_id INT NOT NULL,
-    sale_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    customer_name VARCHAR(255),
-    customer_phone VARCHAR(20),
-    payment_method ENUM('cash', 'card', 'bank_transfer') NOT NULL DEFAULT 'cash',
-    subtotal DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
-    discount_amount DECIMAL(10, 2) DEFAULT 0.00,
-    tax_amount DECIMAL(10, 2) DEFAULT 0.00,
-    total_amount DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
-    amount_paid DECIMAL(12, 2) NOT NULL,
-    change_amount DECIMAL(10, 2) DEFAULT 0.00,
-    notes TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (sales_staff_id) REFERENCES users(id),
-    INDEX idx_invoice_number (invoice_number),
-    INDEX idx_sales_staff (sales_staff_id),
-    INDEX idx_sale_date (sale_date)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- ============================================
--- 10. SALE ITEMS TABLE (for both online and OTC)
--- ============================================
-CREATE TABLE sale_items (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    sale_type ENUM('online', 'otc') NOT NULL,
-    sale_id INT NOT NULL, -- References either online_sales.id or otc_sales.id
-    product_id INT NOT NULL,
-    quantity INT NOT NULL,
-    unit_price DECIMAL(10, 2) NOT NULL,
-    discount_amount DECIMAL(10, 2) DEFAULT 0.00,
-    total_price DECIMAL(12, 2) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (product_id) REFERENCES products(id),
-    INDEX idx_sale (sale_type, sale_id),
-    INDEX idx_product (product_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- ============================================
--- 11. STOCK LOGS TABLE (Audit Trail)
--- ============================================
-CREATE TABLE stock_logs (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    product_id INT NOT NULL,
-    transaction_type ENUM('purchase', 'online_sale', 'otc_sale', 'adjustment', 'return') NOT NULL,
-    reference_id INT, -- ID of the related transaction
-    quantity_change INT NOT NULL, -- Positive for additions, negative for deductions
-    quantity_before INT NOT NULL,
-    quantity_after INT NOT NULL,
-    performed_by INT,
-    notes TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (product_id) REFERENCES products(id),
-    FOREIGN KEY (performed_by) REFERENCES users(id),
-    INDEX idx_product (product_id),
-    INDEX idx_transaction_type (transaction_type),
-    INDEX idx_created_at (created_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- ============================================
--- 12. LOW STOCK ALERTS TABLE
--- ============================================
-CREATE TABLE low_stock_alerts (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    product_id INT NOT NULL,
-    current_stock INT NOT NULL,
-    reorder_level INT NOT NULL,
-    alert_level ENUM('warning', 'critical') NOT NULL,
-    is_acknowledged BOOLEAN DEFAULT FALSE,
-    acknowledged_by INT,
-    acknowledged_at DATETIME,
-    email_sent BOOLEAN DEFAULT FALSE,
-    email_sent_at DATETIME,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (product_id) REFERENCES products(id),
-    FOREIGN KEY (acknowledged_by) REFERENCES users(id),
-    INDEX idx_product (product_id),
-    INDEX idx_acknowledged (is_acknowledged),
-    INDEX idx_created_at (created_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- ============================================
--- 13. SHOPPING CART TABLE (for online sales)
--- ============================================
-CREATE TABLE cart (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    customer_id INT NOT NULL,
-    product_id INT NOT NULL,
-    quantity INT NOT NULL DEFAULT 1,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (customer_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
-    UNIQUE KEY unique_cart_item (customer_id, product_id),
-    INDEX idx_customer (customer_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- ============================================
--- 14. PRODUCT BATCHES TABLE (FIFO Inventory)
+-- 8. PRODUCT BATCHES TABLE (FIFO Inventory)
 -- ============================================
 CREATE TABLE product_batches (
     id INT PRIMARY KEY AUTO_INCREMENT,
@@ -309,7 +175,54 @@ CREATE TABLE product_batches (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ============================================
--- 15. STOCK MOVEMENTS TABLE (Enhanced Audit Trail)
+-- 9. UNIFIED SALES TABLE (Online + POS)
+-- ============================================
+CREATE TABLE sales (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    customer_id INT,
+    channel ENUM('online', 'pos') NOT NULL,
+    sale_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    subtotal DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+    discount DECIMAL(10, 2) DEFAULT 0.00,
+    total_amount DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+    payment_method VARCHAR(50),
+    payment_status ENUM('pending', 'completed', 'failed') NOT NULL DEFAULT 'pending',
+    status ENUM('reserved', 'processing', 'shipped', 'completed', 'returned', 'cancelled') NOT NULL DEFAULT 'reserved',
+    notes TEXT,
+    created_by INT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (customer_id) REFERENCES users(id) ON DELETE SET NULL,
+    FOREIGN KEY (created_by) REFERENCES users(id),
+    INDEX idx_channel (channel),
+    INDEX idx_customer (customer_id),
+    INDEX idx_status (status),
+    INDEX idx_payment_status (payment_status),
+    INDEX idx_sale_date (sale_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ============================================
+-- 10. SALES ITEMS TABLE (with Batch Traceability)
+-- ============================================
+CREATE TABLE sales_items (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    sale_id INT NOT NULL,
+    batch_id INT,
+    product_id INT NOT NULL,
+    quantity INT NOT NULL,
+    unit_price DECIMAL(10, 2) NOT NULL,
+    subtotal DECIMAL(12, 2) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (sale_id) REFERENCES sales(id) ON DELETE CASCADE,
+    FOREIGN KEY (batch_id) REFERENCES product_batches(id),
+    FOREIGN KEY (product_id) REFERENCES products(id),
+    INDEX idx_sale (sale_id),
+    INDEX idx_batch (batch_id),
+    INDEX idx_product (product_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ============================================
+-- 11. STOCK MOVEMENTS TABLE (Enhanced Audit Trail)
 -- ============================================
 CREATE TABLE stock_movements (
     id INT PRIMARY KEY AUTO_INCREMENT,
@@ -333,50 +246,62 @@ CREATE TABLE stock_movements (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ============================================
--- 16. UNIFIED SALES TABLE (Online + POS)
+-- 12. STOCK LOGS TABLE (Audit Trail)
 -- ============================================
-CREATE TABLE sales (
+CREATE TABLE stock_logs (
     id INT PRIMARY KEY AUTO_INCREMENT,
-    customer_id INT,
-    channel ENUM('online', 'pos') NOT NULL,
-    sale_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    subtotal DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
-    discount DECIMAL(10, 2) DEFAULT 0.00,
-    total_amount DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
-    payment_method VARCHAR(50),
-    payment_status ENUM('pending', 'completed', 'failed') NOT NULL DEFAULT 'pending',
-    status ENUM('reserved', 'completed', 'returned', 'cancelled') NOT NULL DEFAULT 'reserved',
+    product_id INT NOT NULL,
+    transaction_type ENUM('purchase', 'online_sale', 'otc_sale', 'pos_sale', 'adjustment', 'return') NOT NULL,
+    reference_id INT,
+    quantity_change INT NOT NULL,
+    quantity_before INT NOT NULL,
+    quantity_after INT NOT NULL,
+    performed_by INT,
     notes TEXT,
-    created_by INT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (customer_id) REFERENCES users(id) ON DELETE SET NULL,
-    FOREIGN KEY (created_by) REFERENCES users(id),
-    INDEX idx_channel (channel),
-    INDEX idx_customer (customer_id),
-    INDEX idx_status (status),
-    INDEX idx_payment_status (payment_status),
-    INDEX idx_sale_date (sale_date)
+    FOREIGN KEY (product_id) REFERENCES products(id),
+    FOREIGN KEY (performed_by) REFERENCES users(id),
+    INDEX idx_product (product_id),
+    INDEX idx_transaction_type (transaction_type),
+    INDEX idx_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ============================================
--- 17. SALES ITEMS TABLE (with Batch Traceability)
+-- 13. LOW STOCK ALERTS TABLE
 -- ============================================
-CREATE TABLE sales_items (
+CREATE TABLE low_stock_alerts (
     id INT PRIMARY KEY AUTO_INCREMENT,
-    sale_id INT NOT NULL,
-    batch_id INT,
     product_id INT NOT NULL,
-    quantity INT NOT NULL,
-    unit_price DECIMAL(10, 2) NOT NULL,
-    subtotal DECIMAL(12, 2) NOT NULL,
+    current_stock INT NOT NULL,
+    reorder_level INT NOT NULL,
+    alert_level ENUM('warning', 'critical') NOT NULL,
+    is_acknowledged BOOLEAN DEFAULT FALSE,
+    acknowledged_by INT,
+    acknowledged_at DATETIME,
+    email_sent BOOLEAN DEFAULT FALSE,
+    email_sent_at DATETIME,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (sale_id) REFERENCES sales(id) ON DELETE CASCADE,
-    FOREIGN KEY (batch_id) REFERENCES product_batches(id),
     FOREIGN KEY (product_id) REFERENCES products(id),
-    INDEX idx_sale (sale_id),
-    INDEX idx_batch (batch_id),
-    INDEX idx_product (product_id)
+    FOREIGN KEY (acknowledged_by) REFERENCES users(id),
+    INDEX idx_product (product_id),
+    INDEX idx_acknowledged (is_acknowledged),
+    INDEX idx_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ============================================
+-- 14. SHOPPING CART TABLE (for online sales)
+-- ============================================
+CREATE TABLE cart (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    customer_id INT NOT NULL,
+    product_id INT NOT NULL,
+    quantity INT NOT NULL DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (customer_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_cart_item (customer_id, product_id),
+    INDEX idx_customer (customer_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ============================================
@@ -441,35 +366,26 @@ SELECT
 FROM products p
 WHERE p.is_active = TRUE;
 
--- View: Sales Summary (Combined Online + OTC)
+-- View: Sales Summary (Unified)
 CREATE VIEW v_sales_summary AS
 SELECT 
-    'online' AS sale_type,
-    DATE(order_date) AS sale_date,
-    COUNT(*) AS transaction_count,
-    SUM(total_amount) AS total_sales,
-    SUM(discount_amount) AS total_discounts
-FROM online_sales
-WHERE status != 'cancelled'
-GROUP BY DATE(order_date)
-UNION ALL
-SELECT 
-    'otc' AS sale_type,
+    channel AS sale_type,
     DATE(sale_date) AS sale_date,
     COUNT(*) AS transaction_count,
     SUM(total_amount) AS total_sales,
-    SUM(discount_amount) AS total_discounts
-FROM otc_sales
-GROUP BY DATE(sale_date);
+    SUM(discount) AS total_discounts
+FROM sales
+WHERE status != 'cancelled'
+GROUP BY channel, DATE(sale_date);
 
 -- ============================================
 -- INDEXES FOR PERFORMANCE
 -- ============================================
 
--- Additional indexes for reporting queries
-CREATE INDEX idx_online_sales_date_status ON online_sales(order_date, status);
-CREATE INDEX idx_otc_sales_date ON otc_sales(sale_date);
-CREATE INDEX idx_sale_items_composite ON sale_items(sale_type, sale_id, product_id);
+-- Additional composite indexes for reporting
+CREATE INDEX idx_sales_date_channel ON sales(sale_date, channel);
+CREATE INDEX idx_sales_date_status ON sales(sale_date, status);
+CREATE INDEX idx_sales_items_composite ON sales_items(sale_id, product_id);
 CREATE INDEX idx_purchase_items_composite ON purchase_items(purchase_id, product_id);
 
 -- ============================================
