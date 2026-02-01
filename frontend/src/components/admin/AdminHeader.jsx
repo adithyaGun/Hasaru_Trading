@@ -2,7 +2,7 @@ import { Layout, Dropdown, Button } from 'antd';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { logout } from '../../store/slices/authSlice';
-import { UserOutlined, LogoutOutlined, HomeOutlined } from '@ant-design/icons';
+import { UserOutlined, LogoutOutlined, HomeOutlined, SettingOutlined } from '@ant-design/icons';
 
 const { Header } = Layout;
 
@@ -22,6 +22,7 @@ const AdminHeader = () => {
     if (path.includes('/reports')) return 'Reports';
     if (path.includes('/analytics')) return 'Analytics';
     if (path.includes('/alerts')) return 'Alerts';
+    if (path.includes('/profile')) return 'My Profile';
     if (path.includes('/users')) return 'User Management';
     if (path.includes('/promotions')) return 'Promotions';
     return 'Admin Panel';
@@ -33,6 +34,12 @@ const AdminHeader = () => {
   };
 
   const menuItems = [
+    {
+      key: 'profile',
+      icon: <SettingOutlined />,
+      label: 'My Profile',
+      onClick: () => navigate('/admin/profile'),
+    },
     {
       key: 'home',
       icon: <HomeOutlined />,

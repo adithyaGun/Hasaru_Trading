@@ -44,12 +44,16 @@ const AdminPurchases = () => {
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [detailsModalVisible, setDetailsModalVisible] = useState(false);
+  const [receiveModalVisible, setReceiveModalVisible] = useState(false);
   const [editingPurchase, setEditingPurchase] = useState(null);
   const [viewingPurchase, setViewingPurchase] = useState(null);
+  const [receivingPurchase, setReceivingPurchase] = useState(null);
   const [form] = Form.useForm();
+  const [receiveForm] = Form.useForm();
   const [searchText, setSearchText] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [purchaseItems, setPurchaseItems] = useState([]);
+  const [receivedItems, setReceivedItems] = useState([]);
   const [stats, setStats] = useState({
     total: 0,
     draft: 0,
@@ -178,21 +182,67 @@ const AdminPurchases = () => {
     }
   };
 
-  const handleUpdateStatus = async (id, status) => {
+  const handleUpdateStatus = async (id, status, purchase) => {
     try {
       if (status === 'completed') {
-        // Call the receive endpoint which updates stock
-        await api.put(`/purchases/${id}/receive`);
-        message.success('Purchase order received and stock updated successfully');
+        // Check if auto_receive is disabled - show manual receive modal
+        if (purchase && purchase.auto_receive === 0) {
+          // Fetch purchase details with items
+          const response = await api.get(`/purchases/${id}`);
+          const purchaseData = response.data?.data || purchase;
+          
+          setReceivingPurchase(purchaseData);
+          // Initialize received items with ordered quantities
+          const initialItems = (purchaseData.items || []).map(item => ({
+            product_id: item.product_id,
+            product_name: item.product_name,
+            ordered_quantity: item.quantity,
+            received_quantity: item.quantity,
+            unit_price: item.unit_price
+          }));
+          setReceivedItems(initialItems);
+          setReceiveModalVisible(true);
+        } else {
+          // Auto-receive - call the receive endpoint which updates stock
+          await api.put(`/purchases/${id}/receive`);
+          message.success('Purchase order received and stock updated successfully');
+          fetchPurchases();
+        }
       } else if (status === 'cancelled') {
         await api.put(`/purchases/${id}`, { status: 'cancelled' });
         message.success('Purchase order cancelled');
+        fetchPurchases();
       }
-      fetchPurchases();
     } catch (error) {
       message.error(error.response?.data?.message || 'Failed to update status');
       console.error('Error updating status:', error);
     }
+  };
+
+  const handleConfirmReceive = async () => {
+    try {
+      const items = receivedItems.map(item => ({
+        product_id: item.product_id,
+        quantity: parseFloat(item.received_quantity) || 0,
+        unit_price: parseFloat(item.unit_price) || 0
+      }));
+
+      await api.post(`/purchases/${receivingPurchase.id}/confirm-receive`, { items });
+      message.success('Goods received and stock updated successfully');
+      setReceiveModalVisible(false);
+      setReceivingPurchase(null);
+      setReceivedItems([]);
+      fetchPurchases();
+    } catch (error) {
+      message.error(error.response?.data?.message || 'Failed to confirm receipt');
+      console.error('Error confirming receipt:', error);
+    }
+  };
+
+  const handleReceivedQuantityChange = (index, value) => {
+    const newItems = [...receivedItems];
+    newItems[index].received_quantity = value;
+    setReceivedItems(newItems);
   };
 
   const handleAddItem = () => {
@@ -354,7 +404,7 @@ const AdminPurchases = () => {
                 <Popconfirm
                   title="Receive goods and update stock?"
                   description="This will update product stock quantities."
-                  onConfirm={() => handleUpdateStatus(record.id, 'completed')}
+                  onConfirm={() => handleUpdateStatus(record.id, 'completed', record)}
                   okText="Yes"
                   cancelText="No"
                 >
@@ -773,6 +823,149 @@ const AdminPurchases = () => {
                 );
               }}
             />
+          </>
+        )}
+      </Modal>
+
+      {/* Receive Confirmation Modal */}
+      <Modal
+        title={
+          <Space>
+            <CheckCircleOutlined style={{ color: '#52c41a' }} />
+            <span>Confirm Goods Receipt</span>
+          </Space>
+        }
+        open={receiveModalVisible}
+        onCancel={() => {
+          setReceiveModalVisible(false);
+          setReceivingPurchase(null);
+          setReceivedItems([]);
+        }}
+        onOk={handleConfirmReceive}
+        width={800}
+        okText="Confirm Receipt"
+        okButtonProps={{ style: { backgroundColor: '#52c41a', borderColor: '#52c41a' } }}
+      >
+        {receivingPurchase && (
+          <>
+            <Descriptions bordered column={2} size="small" className="mb-4">
+              <Descriptions.Item label="Purchase Order">
+                PO-{receivingPurchase.id}
+              </Descriptions.Item>
+              <Descriptions.Item label="Supplier">
+                {receivingPurchase.supplier_name}
+              </Descriptions.Item>
+              <Descriptions.Item label="Order Date">
+                {new Date(receivingPurchase.order_date).toLocaleDateString()}
+              </Descriptions.Item>
+              <Descriptions.Item label="Expected Date">
+                {receivingPurchase.expected_date 
+                  ? new Date(receivingPurchase.expected_date).toLocaleDateString() 
+                  : 'N/A'}
+              </Descriptions.Item>
+            </Descriptions>
+
+            <Divider>Received Items - Enter Actual Quantities</Divider>
+
+            <Table
+              dataSource={receivedItems}
+              rowKey="product_id"
+              pagination={false}
+              size="small"
+              columns={[
+                {
+                  title: 'Product',
+                  dataIndex: 'product_name',
+                  key: 'product_name',
+                  width: '35%',
+                },
+                {
+                  title: 'Ordered Qty',
+                  dataIndex: 'ordered_quantity',
+                  key: 'ordered_quantity',
+                  width: '15%',
+                  align: 'center',
+                  render: (qty) => <strong>{qty}</strong>
+                },
+                {
+                  title: 'Received Qty',
+                  key: 'received_quantity',
+                  width: '25%',
+                  render: (_, record, index) => (
+                    <InputNumber
+                      value={record.received_quantity}
+                      onChange={(value) => handleReceivedQuantityChange(index, value)}
+                      min={0}
+                      max={record.ordered_quantity * 1.1} // Allow 10% overage
+                      style={{ width: '100%' }}
+                      status={record.received_quantity !== record.ordered_quantity ? 'warning' : ''}
+                    />
+                  ),
+                },
+                {
+                  title: 'Unit Price',
+                  dataIndex: 'unit_price',
+                  key: 'unit_price',
+                  width: '15%',
+                  render: (price) => `Rs. ${parseFloat(price).toFixed(2)}`,
+                },
+                {
+                  title: 'Total',
+                  key: 'total',
+                  width: '10%',
+                  align: 'right',
+                  render: (_, record) => (
+                    <span style={{ fontWeight: record.received_quantity !== record.ordered_quantity ? 'bold' : 'normal', color: record.received_quantity !== record.ordered_quantity ? '#faad14' : 'inherit' }}>
+                      Rs. {((record.received_quantity || 0) * record.unit_price).toFixed(2)}
+                    </span>
+                  ),
+                },
+              ]}
+              summary={(pageData) => {
+                const orderedTotal = pageData.reduce((sum, item) => sum + (item.ordered_quantity * item.unit_price), 0);
+                const receivedTotal = pageData.reduce((sum, item) => sum + ((item.received_quantity || 0) * item.unit_price), 0);
+                const hasDiscrepancies = pageData.some(item => item.received_quantity !== item.ordered_quantity);
+                
+                return (
+                  <>
+                    <Table.Summary.Row>
+                      <Table.Summary.Cell index={0} colSpan={1}>
+                        <strong>Ordered Total</strong>
+                      </Table.Summary.Cell>
+                      <Table.Summary.Cell index={1} colSpan={3} />
+                      <Table.Summary.Cell index={2} align="right">
+                        <strong>Rs. {orderedTotal.toFixed(2)}</strong>
+                      </Table.Summary.Cell>
+                    </Table.Summary.Row>
+                    <Table.Summary.Row>
+                      <Table.Summary.Cell index={0} colSpan={1}>
+                        <strong style={{ color: hasDiscrepancies ? '#faad14' : '#52c41a' }}>
+                          Received Total
+                        </strong>
+                      </Table.Summary.Cell>
+                      <Table.Summary.Cell index={1} colSpan={3} />
+                      <Table.Summary.Cell index={2} align="right">
+                        <strong style={{ color: hasDiscrepancies ? '#faad14' : '#52c41a' }}>
+                          Rs. {receivedTotal.toFixed(2)}
+                        </strong>
+                      </Table.Summary.Cell>
+                    </Table.Summary.Row>
+                  </>
+                );
+              }}
+            />
+
+            {receivedItems.some(item => item.received_quantity !== item.ordered_quantity) && (
+              <div style={{ marginTop: '16px', padding: '12px', backgroundColor: '#fffbe6', border: '1px solid #ffe58f', borderRadius: '4px' }}>
+                <Space>
+                  <ExclamationCircleOutlined style={{ color: '#faad14' }} />
+                  <span style={{ color: '#ad6800' }}>
+                    <strong>Notice:</strong> Received quantities differ from ordered quantities. 
+                    Please verify the discrepancies before confirming.
+                  </span>
+                </Space>
+              </div>
+            )}
           </>
         )}
       </Modal>

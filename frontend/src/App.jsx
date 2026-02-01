@@ -18,7 +18,8 @@ import AdminPurchases from './pages/admin/Purchases';
 import AdminReports from './pages/admin/Reports';
 import AdminAnalytics from './pages/admin/Analytics';
 import AdminAlerts from './pages/admin/Alerts';
-import AdminUsers from './pages/admin/Users';
+import AdminProfile from './pages/admin/Profile';
+import AdminUserManagement from './pages/admin/UserManagement';
 import AdminPromotions from './pages/admin/Promotions';
 
 // Sales Staff pages
@@ -78,7 +79,8 @@ function App() {
         <Route path="reports" element={<AdminReports />} />
         <Route path="analytics" element={<AdminAnalytics />} />
         <Route path="alerts" element={<AdminAlerts />} />
-        <Route path="users" element={<AdminUsers />} />
+        <Route path="profile" element={<AdminProfile />} />
+        <Route path="users" element={<AdminUserManagement />} />
         <Route path="promotions" element={<AdminPromotions />} />
       </Route>
 

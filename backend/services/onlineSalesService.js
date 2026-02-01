@@ -246,14 +246,25 @@ class OnlineSalesService {
 
       const order = await this.getOrderById(saleId);
 
-      // Send confirmation email
-      const [customers] = await pool.query(
-        'SELECT name, email FROM users WHERE id = ?',
-        [customerId]
-      );
-      if (customers.length > 0) {
-        emailService.sendOrderConfirmation(order, customers[0]);
-      }
+      // Prepare email data with properly formatted fields
+      const emailOrder = {
+        ...order,
+        order_number: `ONL-${String(saleId).padStart(6, '0')}`,
+        order_date: order.sale_date,
+        shipping_address: shipping_address || 'Not provided'
+      };
+
+      const customer = {
+        name: order.customer_name,
+        email: order.customer_email
+      };
+
+      // Send confirmation email (async, don't block response)
+      emailService.sendOrderConfirmation(emailOrder, customer)
+        .catch(error => {
+          console.error('Failed to send order confirmation email:', error);
+          // Don't fail the request if email fails
+        });
 
       return order;
     } catch (error) {

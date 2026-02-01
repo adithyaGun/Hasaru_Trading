@@ -37,6 +37,10 @@ const Login = () => {
     await dispatch(login(values));
   };
 
+  const fillDemoCredentials = (email, password) => {
+    form.setFieldsValue({ email, password });
+  };
+
   return (
     <div className="min-h-screen flex">
       {/* Left Side - Form */}
@@ -101,6 +105,54 @@ const Login = () => {
                 <p className="text-red-700 text-sm font-medium">{error}</p>
               </div>
             )}
+
+            {/* Demo Credentials */}
+            <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl">
+              <p className="text-sm font-semibold text-blue-900 mb-3">🚀 Demo Credentials (Click to Auto-Fill)</p>
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => fillDemoCredentials('admin@hasarutrading.com', 'password123')}
+                  className="w-full text-left p-2 bg-white hover:bg-blue-100 rounded-lg border border-blue-200 transition-colors"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">Admin User</p>
+                      <p className="text-xs text-gray-500">admin@hasarutrading.com / password123</p>
+                    </div>
+                    <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded font-medium">ADMIN</span>
+                  </div>
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={() => fillDemoCredentials('sales1@hasarutrading.com', 'password123')}
+                  className="w-full text-left p-2 bg-white hover:bg-blue-100 rounded-lg border border-blue-200 transition-colors"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">Sales Staff 1</p>
+                      <p className="text-xs text-gray-500">sales1@hasarutrading.com / password123</p>
+                    </div>
+                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded font-medium">STAFF</span>
+                  </div>
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={() => fillDemoCredentials('customer1@email.com', 'password123')}
+                  className="w-full text-left p-2 bg-white hover:bg-blue-100 rounded-lg border border-blue-200 transition-colors"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">John Customer</p>
+                      <p className="text-xs text-gray-500">customer1@email.com / password123</p>
+                    </div>
+                    <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-medium">CUSTOMER</span>
+                  </div>
+                </button>
+              </div>
+            </div>
 
             <Form.Item className="!mb-6">
               <Button

@@ -8,13 +8,14 @@ USE tire_auto_parts_db;
 -- ============================================
 -- 1. USERS
 -- Password for all: 'password123'
+-- Hash generated with bcrypt cost factor 10
 -- ============================================
 INSERT INTO users (name, email, password, role, phone, address) VALUES
-('Admin User', 'admin@hasarutrading.com', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin', '0712345678', '123 Main St, Colombo'),
-('Sales Staff 1', 'sales1@hasarutrading.com', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'sales_staff', '0723456789', '456 Shop St, Colombo'),
-('Sales Staff 2', 'sales2@hasarutrading.com', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'sales_staff', '0734567890', '789 Store Ave, Colombo'),
-('John Customer', 'customer1@email.com', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'customer', '0745678901', '321 Customer Rd, Colombo'),
-('Jane Doe', 'customer2@email.com', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'customer', '0756789012', '654 Buyer St, Colombo');
+('Admin User', 'admin@hasarutrading.com', '$2a$10$vR6s01QDRR7Uy.qW7S34FetW/imLe/hFoQaUmcOf.3g0Kfzg1veQW', 'admin', '0712345678', '123 Main St, Colombo'),
+('Sales Staff 1', 'sales1@hasarutrading.com', '$2a$10$vR6s01QDRR7Uy.qW7S34FetW/imLe/hFoQaUmcOf.3g0Kfzg1veQW', 'sales_staff', '0723456789', '456 Shop St, Colombo'),
+('Sales Staff 2', 'sales2@hasarutrading.com', '$2a$10$vR6s01QDRR7Uy.qW7S34FetW/imLe/hFoQaUmcOf.3g0Kfzg1veQW', 'sales_staff', '0734567890', '789 Store Ave, Colombo'),
+('John Customer', 'customer1@email.com', '$2a$10$vR6s01QDRR7Uy.qW7S34FetW/imLe/hFoQaUmcOf.3g0Kfzg1veQW', 'customer', '0745678901', '321 Customer Rd, Colombo'),
+('Jane Doe', 'customer2@email.com', '$2a$10$vR6s01QDRR7Uy.qW7S34FetW/imLe/hFoQaUmcOf.3g0Kfzg1veQW', 'customer', '0756789012', '654 Buyer St, Colombo');
 
 -- ============================================
 -- 2. SUPPLIERS
