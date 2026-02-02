@@ -63,51 +63,82 @@ const AdminReports = () => {
   const fetchReportData = async () => {
     setLoading(true);
     try {
-      // Fetch overall statistics
-      const statsResponse = await api.get('/reports/stats', {
-        params: {
-          start_date: dateRange?.[0]?.format('YYYY-MM-DD'),
-          end_date: dateRange?.[1]?.format('YYYY-MM-DD')
-        }
-      });
+      const params = {
+        start_date: dateRange?.[0]?.format('YYYY-MM-DD'),
+        end_date: dateRange?.[1]?.format('YYYY-MM-DD'),
+        period: 'custom'
+      };
+
+      // Fetch overall sales statistics
+      const salesResponse = await api.get('/reports/sales', { params });
+      const salesStats = salesResponse.data?.data || salesResponse.data;
       
-      const statsData = statsResponse.data.data || (typeof statsResponse.data === 'object' && !Array.isArray(statsResponse.data) ? statsResponse.data : null);
-      if (statsData && !Array.isArray(statsData)) {
+      if (salesStats) {
         setStats({
-          totalRevenue: statsData.total_revenue || 0,
-          totalOrders: statsData.total_orders || 0,
-          totalCustomers: statsData.total_customers || 0,
-          growthRate: statsData.growth_rate || 0
+          totalRevenue: parseFloat(salesStats.combined?.total_sales || 0),
+          totalOrders: parseInt(salesStats.combined?.total_orders || 0),
+          totalCustomers: 0, // Not available in current endpoint
+          growthRate: 0 // Calculate if needed
         });
       }
 
-      // Fetch sales trend data
-      const salesResponse = await api.get('/reports/sales-trend', {
-        params: {
-          start_date: dateRange?.[0]?.format('YYYY-MM-DD'),
-          end_date: dateRange?.[1]?.format('YYYY-MM-DD')
+      // Fetch daily sales trend data
+      const trendResponse = await api.get('/reports/sales/trend', { params });
+      const trendData = trendResponse.data?.data?.daily_sales || [];
+      
+      // Group by date and sum totals
+      const groupedData = trendData.reduce((acc, item) => {
+        const dateKey = new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        if (!acc[dateKey]) {
+          acc[dateKey] = { month: dateKey, revenue: 0, orders: 0 };
         }
-      });
-      const salesData = Array.isArray(salesResponse.data) ? salesResponse.data : (salesResponse.data.data || []);
-      setSalesData(salesData.length > 0 ? salesData : generateMockSalesData());
-
-      // Fetch top products
-      const productsResponse = await api.get('/reports/top-products', {
-        params: {
-          limit: 10
-        }
-      });
-      const productsData = Array.isArray(productsResponse.data) ? productsResponse.data : (productsResponse.data.data || []);
-      setTopProducts(productsData.length > 0 ? productsData : generateMockTopProducts());
+        acc[dateKey].revenue += parseFloat(item.daily_total || 0);
+        acc[dateKey].orders += parseInt(item.transaction_count || 0);
+        return acc;
+      }, {});
+      
+      setSalesData(Object.values(groupedData));
 
       // Fetch category breakdown
-      const categoryResponse = await api.get('/reports/category-breakdown');
-      const categoryData = Array.isArray(categoryResponse.data) ? categoryResponse.data : (categoryResponse.data.data || []);
-      setCategoryData(categoryData.length > 0 ? categoryData : generateMockCategoryData());
+      const categoryResponse = await api.get('/reports/sales/category', { params });
+      const categoryData = categoryResponse.data?.data?.categories || [];
+      
+      // Map to chart format
+      const mappedCategories = categoryData.map(cat => ({
+        name: cat.category || 'Unknown',
+        value: parseFloat(cat.total_revenue || 0)
+      }));
+      setCategoryData(mappedCategories);
+
+      // Top products - use analytics endpoint
+      try {
+        const analyticsResponse = await api.get('/analytics/top-selling', { 
+          params: { 
+            limit: 10,
+            start_date: params.start_date,
+            end_date: params.end_date,
+            period: params.period
+          } 
+        });
+        const topProductsData = analyticsResponse.data?.data?.top_selling_products || [];
+        
+        const mappedProducts = topProductsData.map(p => ({
+          id: p.product_id,
+          name: p.product_name,
+          category: p.category || 'N/A',
+          units_sold: parseInt(p.total_quantity_sold || 0),
+          revenue: parseFloat(p.total_revenue || 0)
+        }));
+        setTopProducts(mappedProducts);
+      } catch (error) {
+        console.error('Error fetching top products:', error);
+        setTopProducts(generateMockTopProducts());
+      }
 
       message.success('Report data loaded successfully');
     } catch (error) {
       console.error('Error fetching report data:', error);
+      message.error('Failed to load report data');
       // Use mock data on error
       setSalesData(generateMockSalesData());
       setTopProducts(generateMockTopProducts());
@@ -228,9 +259,8 @@ const AdminReports = () => {
                 title="Total Revenue"
                 value={stats.totalRevenue}
                 precision={2}
-                prefix={<DollarOutlined />}
+                prefix="Rs."
                 valueStyle={{ color: '#dc2626' }}
-                suffix="USD"
               />
             </Card>
           </Col>
@@ -286,7 +316,7 @@ const AdminReports = () => {
                     dataKey="revenue" 
                     stroke="#dc2626" 
                     strokeWidth={2}
-                    name="Revenue ($)"
+                    name="Revenue (Rs.)"
                   />
                   <Line 
                     yAxisId="right"
@@ -337,7 +367,7 @@ const AdminReports = () => {
                   <Tooltip />
                   <Legend />
                   <Bar dataKey="units_sold" fill="#2563eb" name="Units Sold" />
-                  <Bar dataKey="revenue" fill="#dc2626" name="Revenue ($)" />
+                  <Bar dataKey="revenue" fill="#dc2626" name="Revenue (Rs.)" />
                 </BarChart>
               </ResponsiveContainer>
             </Card>

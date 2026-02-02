@@ -21,6 +21,8 @@ import AdminAlerts from './pages/admin/Alerts';
 import AdminProfile from './pages/admin/Profile';
 import AdminUserManagement from './pages/admin/UserManagement';
 import AdminPromotions from './pages/admin/Promotions';
+import AdminPOSSales from './pages/admin/POSSales';
+import AdminOnlineOrders from './pages/admin/OnlineOrders';
 
 // Sales Staff pages
 import SalesDashboard from './pages/sales/Dashboard';
@@ -76,6 +78,8 @@ function App() {
         <Route path="products" element={<AdminProducts />} />
         <Route path="suppliers" element={<AdminSuppliers />} />
         <Route path="purchases" element={<AdminPurchases />} />
+        <Route path="pos-sales" element={<AdminPOSSales />} />
+        <Route path="online-orders" element={<AdminOnlineOrders />} />
         <Route path="reports" element={<AdminReports />} />
         <Route path="analytics" element={<AdminAnalytics />} />
         <Route path="alerts" element={<AdminAlerts />} />

@@ -56,8 +56,13 @@ const AdminSuppliers = () => {
       const response = await api.get('/suppliers');
       // Backend returns { success, message, data: { suppliers, pagination } }
       const suppliersData = response.data?.data?.suppliers || [];
-      setSuppliers(suppliersData);
-      calculateStats(suppliersData);
+      // Map is_active to status for frontend compatibility
+      const mappedSuppliers = suppliersData.map(supplier => ({
+        ...supplier,
+        status: supplier.is_active === 1 ? 'active' : 'inactive'
+      }));
+      setSuppliers(mappedSuppliers);
+      calculateStats(mappedSuppliers);
       message.success('Suppliers loaded successfully');
     } catch (error) {
       message.error('Failed to load suppliers');
@@ -108,11 +113,18 @@ const AdminSuppliers = () => {
 
   const handleSubmit = async (values) => {
     try {
+      // Map status to is_active for backend compatibility
+      const payload = {
+        ...values,
+        is_active: values.status === 'active' ? 1 : 0
+      };
+      delete payload.status; // Remove status field as backend expects is_active
+      
       if (editingSupplier) {
-        await api.put(`/suppliers/${editingSupplier.id}`, values);
+        await api.put(`/suppliers/${editingSupplier.id}`, payload);
         message.success('Supplier updated successfully');
       } else {
-        await api.post('/suppliers', values);
+        await api.post('/suppliers', payload);
         message.success('Supplier created successfully');
       }
       setModalVisible(false);

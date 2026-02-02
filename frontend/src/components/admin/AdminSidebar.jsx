@@ -13,6 +13,8 @@ import {
   TagOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
+  ShopOutlined,
+  GlobalOutlined,
 } from '@ant-design/icons';
 
 const { Sider } = Layout;
@@ -42,6 +44,16 @@ const AdminSidebar = () => {
       key: '/admin/purchases',
       icon: <ShoppingCartOutlined />,
       label: <Link to="/admin/purchases">Purchases</Link>,
+    },
+    {
+      key: '/admin/pos-sales',
+      icon: <ShopOutlined />,
+      label: <Link to="/admin/pos-sales">POS Sales</Link>,
+    },
+    {
+      key: '/admin/online-orders',
+      icon: <GlobalOutlined />,
+      label: <Link to="/admin/online-orders">Online Orders</Link>,
     },
     {
       key: '/admin/reports',

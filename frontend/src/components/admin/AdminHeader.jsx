@@ -19,6 +19,8 @@ const AdminHeader = () => {
     if (path.includes('/products')) return 'Products Management';
     if (path.includes('/suppliers')) return 'Suppliers Management';
     if (path.includes('/purchases')) return 'Purchase Orders';
+    if (path.includes('/pos-sales')) return 'POS Sales History';
+    if (path.includes('/online-orders')) return 'Online Orders Management';
     if (path.includes('/reports')) return 'Reports';
     if (path.includes('/analytics')) return 'Analytics';
     if (path.includes('/alerts')) return 'Alerts';
