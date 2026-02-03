@@ -4,6 +4,7 @@ const { generateOrderNumber, calculateDiscount, getPaginationParams } = require(
 const { ONLINE_ORDER_STATUS, PAYMENT_STATUS, TRANSACTION_TYPES } = require('../config/constants');
 const stockService = require('./stockService');
 const emailService = require('./emailService');
+const logger = require('../utils/logger');
 
 class OnlineSalesService {
   /**
@@ -289,6 +290,7 @@ class OnlineSalesService {
     }
 
     const order = await this.getOrderById(orderId);
+    const oldStatus = order.status;
 
     if (order.status === 'cancelled') {
       throw new AppError('Cannot update cancelled order', 400);
@@ -313,7 +315,22 @@ class OnlineSalesService {
       }
 
       await connection.commit();
-      return await this.getOrderById(orderId);
+      
+      const updatedOrder = await this.getOrderById(orderId);
+      
+      // Send email notification to customer if status actually changed
+      if (oldStatus !== status) {
+        const customer = {
+          name: order.customer_name,
+          email: order.customer_email
+        };
+        
+        // Send email asynchronously (don't wait for it)
+        emailService.sendOrderStatusUpdate(updatedOrder, customer, oldStatus, status)
+          .catch(err => logger.error(`Email notification failed for order ${orderId}: ${err.message}`));
+      }
+      
+      return updatedOrder;
     } catch (error) {
       await connection.rollback();
       throw error;
