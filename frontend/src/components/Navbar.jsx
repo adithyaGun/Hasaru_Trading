@@ -31,7 +31,7 @@ const Navbar = () => {
   };
 
   const userMenuItems = [
-    {
+    user?.role !== 'customer' && {
       key: 'dashboard',
       icon: <LayoutDashboard className="w-4 h-4" />,
       label: 'Dashboard',

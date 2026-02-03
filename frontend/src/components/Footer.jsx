@@ -49,10 +49,10 @@ const Footer = () => {
             <h4 className="text-white text-lg font-semibold mb-4">Customer Service</h4>
             <ul className="space-y-2">
               <li>
-                <Link to="/customer" className="hover:text-red-400 transition">My Account</Link>
+                <Link to="/customer/orders" className="hover:text-red-400 transition">My Orders</Link>
               </li>
               <li>
-                <Link to="/customer/orders" className="hover:text-red-400 transition">Order History</Link>
+                <Link to="/customer/profile" className="hover:text-red-400 transition">My Profile</Link>
               </li>
               <li>
                 <a href="#" className="hover:text-red-400 transition">Help & Support</a>

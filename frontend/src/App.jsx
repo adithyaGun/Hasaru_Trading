@@ -31,7 +31,6 @@ import OnlineOrders from './pages/sales/OnlineOrders';
 import SalesHistory from './pages/sales/SalesHistory';
 
 // Customer pages
-import CustomerDashboard from './pages/customer/Dashboard';
 import MyOrders from './pages/customer/MyOrders';
 import Profile from './pages/customer/Profile';
 
@@ -98,7 +97,7 @@ function App() {
 
       {/* Customer routes */}
       <Route path="/customer" element={<ProtectedRoute />}>
-        <Route index element={<CustomerDashboard />} />
+        <Route index element={<Navigate to="/customer/orders" replace />} />
         <Route path="orders" element={<MyOrders />} />
         <Route path="profile" element={<Profile />} />
       </Route>
