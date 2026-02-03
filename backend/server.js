@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const path = require('path');
 const rateLimit = require('express-rate-limit');
 const { testConnection } = require('./config/db');
 const { verifyEmailConfig } = require('./config/email');
@@ -29,8 +30,16 @@ const app = express();
 // MIDDLEWARE
 // ==========================================
 
-// Security headers
-app.use(helmet());
+// Security headers with custom CSP for images
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  contentSecurityPolicy: {
+    directives: {
+      ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+      "img-src": ["'self'", "data:", "blob:"],
+    },
+  },
+}));
 
 // CORS configuration
 app.use(cors({
@@ -41,6 +50,9 @@ app.use(cors({
 // Body parser
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Serve static files from uploads directory
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Logging
 if (process.env.NODE_ENV === 'development') {

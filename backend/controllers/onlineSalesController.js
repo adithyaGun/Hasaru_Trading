@@ -53,6 +53,20 @@ exports.getMyOrders = asyncHandler(async (req, res) => {
   res.json(successResponse(result, 'Your orders fetched successfully'));
 });
 
+exports.getMyOrderById = asyncHandler(async (req, res) => {
+  const order = await onlineSalesService.getOrderById(req.params.id);
+  
+  // Verify the order belongs to the logged-in user
+  if (order.customer_id !== req.user.id) {
+    return res.status(403).json({
+      success: false,
+      message: 'Access denied. You can only view your own orders.'
+    });
+  }
+  
+  res.json(successResponse(order, 'Order fetched successfully'));
+});
+
 exports.updateOrderStatus = asyncHandler(async (req, res) => {
   const { status } = req.body;
   

@@ -7,6 +7,7 @@ import { Card, Button, Input, Select, Pagination, Spin, Empty } from 'antd';
 import { ShoppingCartOutlined, SearchOutlined } from '@ant-design/icons';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
+import { getImageUrl } from '../../config/constants';
 
 const { Meta } = Card;
 const { Option } = Select;
@@ -16,6 +17,7 @@ const Products = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { products, categories, brands, pagination, loading } = useSelector((state) => state.products);
   const { isAuthenticated } = useSelector((state) => state.auth);
+  const [searchInput, setSearchInput] = useState(searchParams.get('search') || '');
 
   const [filters, setFilters] = useState({
     search: searchParams.get('search') || '',
@@ -33,6 +35,16 @@ const Products = () => {
   useEffect(() => {
     dispatch(fetchProducts(filters));
   }, [dispatch, filters]);
+
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchInput !== filters.search) {
+        handleFilterChange('search', searchInput);
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   const handleFilterChange = (key, value) => {
     const newFilters = { ...filters, [key]: value, page: 1 };
@@ -65,7 +77,7 @@ const Products = () => {
     <div className="min-h-screen flex flex-col">
       <Navbar />
 
-      <div className="flex-1 bg-gray-50 py-8">
+      <div className="flex-1 bg-gray-50 py-8" style={{ minHeight: '70vh' }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h1 className="text-3xl font-bold mb-8">Products</h1>
 
@@ -75,8 +87,8 @@ const Products = () => {
               <Input
                 placeholder="Search products..."
                 prefix={<SearchOutlined />}
-                value={filters.search}
-                onChange={(e) => handleFilterChange('search', e.target.value)}
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
                 size="large"
               />
               
@@ -107,13 +119,17 @@ const Products = () => {
               <Button
                 type="primary"
                 size="large"
-                onClick={() => setFilters({
-                  search: '',
-                  category: '',
-                  brand: '',
-                  page: 1,
-                  limit: 20,
-                })}
+                onClick={() => {
+                  setSearchInput('');
+                  setFilters({
+                    search: '',
+                    category: '',
+                    brand: '',
+                    page: 1,
+                    limit: 20,
+                  });
+                  setSearchParams({});
+                }}
               >
                 Clear Filters
               </Button>
@@ -122,11 +138,13 @@ const Products = () => {
 
           {/* Products Grid */}
           {loading ? (
-            <div className="text-center py-12">
+            <div className="text-center py-12" style={{ minHeight: '400px' }}>
               <Spin size="large" />
             </div>
           ) : products.length === 0 ? (
-            <Empty description="No products found" />
+            <div style={{ minHeight: '400px' }}>
+              <Empty description="No products found" />
+            </div>
           ) : (
             <>
               <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-8">
@@ -136,8 +154,21 @@ const Products = () => {
                     hoverable
                     cover={
                       <Link to={`/product/${product.id}`}>
-                        <div className="h-48 bg-gray-200 flex items-center justify-center">
-                          <span className="text-4xl">📦</span>
+                        <div className="h-48 bg-gray-200 flex items-center justify-center overflow-hidden">
+                          {product.image_url ? (
+                            <img
+                              src={getImageUrl(product.image_url)}
+                              alt={product.name}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                                e.target.nextSibling.style.display = 'flex';
+                              }}
+                            />
+                          ) : null}
+                          <div style={{ display: product.image_url ? 'none' : 'flex' }} className="w-full h-full items-center justify-center">
+                            <span className="text-4xl">📦</span>
+                          </div>
                         </div>
                       </Link>
                     }
@@ -154,11 +185,24 @@ const Products = () => {
                   >
                     <Link to={`/product/${product.id}`}>
                       <Meta
-                        title={
-                          <div className="truncate" title={product.product_name}>
-                            {product.product_name}
+                        title={(
+                          <div 
+                            style={{ 
+                              height: '48px',
+                              lineHeight: '24px',
+                              overflow: 'hidden',
+                              display: '-webkit-box',
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: 'vertical',
+                              wordBreak: 'break-word',
+                              fontSize: '16px',
+                              fontWeight: 500
+                            }}
+                            title={product.name}
+                          >
+                            {product.name}
                           </div>
-                        }
+                        )}
                         description={
                           <div>
                             <p className="text-gray-500 text-sm mb-1">{product.brand}</p>

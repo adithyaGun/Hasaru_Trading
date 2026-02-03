@@ -7,6 +7,7 @@ import { Button, InputNumber, Spin, Descriptions, Tag } from 'antd';
 import { ShoppingCartOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
+import { getImageUrl } from '../../config/constants';
 
 const ProductDetail = () => {
   const { id } = useParams();
@@ -57,13 +58,24 @@ const ProductDetail = () => {
           <div className="bg-white rounded-lg shadow-md p-8">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {/* Product Image */}
-              <div className="flex items-center justify-center bg-gray-100 rounded-lg p-8">
-                <span className="text-9xl">📦</span>
+              <div className="flex items-center justify-center bg-gray-100 rounded-lg p-8 overflow-hidden">
+                {product.image_url ? (
+                  <img
+                    src={getImageUrl(product.image_url)}
+                    alt={product.name}
+                    className="max-w-full max-h-96 object-contain"
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                      e.target.nextSibling.style.display = 'block';
+                    }}
+                  />
+                ) : null}
+                <span className="text-9xl" style={{ display: product.image_url ? 'none' : 'block' }}>📦</span>
               </div>
 
               {/* Product Details */}
               <div>
-                <h1 className="text-3xl font-bold mb-4">{product.product_name}</h1>
+                <h1 className="text-3xl font-bold mb-4">{product.name}</h1>
                 
                 <div className="mb-4">
                   <Tag color="blue">{product.category}</Tag>
@@ -77,7 +89,7 @@ const ProductDetail = () => {
                 </div>
 
                 <Descriptions bordered column={1} className="mb-6">
-                  <Descriptions.Item label="Product Code">{product.product_code}</Descriptions.Item>
+                  <Descriptions.Item label="SKU">{product.sku}</Descriptions.Item>
                   <Descriptions.Item label="Category">{product.category}</Descriptions.Item>
                   <Descriptions.Item label="Brand">{product.brand}</Descriptions.Item>
                   <Descriptions.Item label="Stock Status">

@@ -1,6 +1,7 @@
 const { pool } = require('../config/db');
 const { AppError } = require('../middleware/errorHandler');
 const { getPaginationParams } = require('../utils/helpers');
+const { deleteImage } = require('../middleware/upload');
 
 class ProductService {
   /**
@@ -145,17 +146,17 @@ class ProductService {
    */
   async createProduct(productData) {
     const {
-      name, description, sku, barcode, category, brand, unit,
+      name, description, image_url, sku, barcode, category, brand, unit,
       purchase_price, selling_price, stock_quantity,
       reorder_level, minimum_stock_level
     } = productData;
 
     const [result] = await pool.query(
       `INSERT INTO products 
-       (name, description, sku, barcode, category, brand, unit, purchase_price, 
+       (name, description, image_url, sku, barcode, category, brand, unit, purchase_price, 
         selling_price, stock_quantity, reorder_level, minimum_stock_level)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [name, description, sku, barcode, category, brand, unit || 'piece',
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [name, description, image_url || null, sku, barcode, category, brand, unit || 'piece',
        purchase_price || 0, selling_price, stock_quantity || 0,
        reorder_level || 10, minimum_stock_level || 5]
     );
@@ -167,14 +168,14 @@ class ProductService {
    * Update product
    */
   async updateProduct(id, productData) {
-    // Check if product exists
-    await this.getProductById(id);
+    // Check if product exists and get old image
+    const oldProduct = await this.getProductById(id);
 
     const updates = [];
     const values = [];
 
     const allowedFields = [
-      'name', 'description', 'sku', 'barcode', 'category', 'brand', 'unit',
+      'name', 'description', 'image_url', 'sku', 'barcode', 'category', 'brand', 'unit',
       'purchase_price', 'selling_price', 'reorder_level', 'minimum_stock_level'
     ];
 
@@ -196,6 +197,11 @@ class ProductService {
       values
     );
 
+    // Delete old image if new image was uploaded
+    if (productData.image_url && oldProduct.image_url) {
+      deleteImage(oldProduct.image_url);
+    }
+
     return await this.getProductById(id);
   }
 
@@ -203,13 +209,18 @@ class ProductService {
    * Delete product (soft delete)
    */
   async deleteProduct(id) {
-    // Check if product exists
-    await this.getProductById(id);
+    // Check if product exists and get image URL
+    const product = await this.getProductById(id);
 
     await pool.query(
       'UPDATE products SET is_active = FALSE WHERE id = ?',
       [id]
     );
+
+    // Delete product image if exists
+    if (product.image_url) {
+      deleteImage(product.image_url);
+    }
 
     return { message: 'Product deleted successfully' };
   }

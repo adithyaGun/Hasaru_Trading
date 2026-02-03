@@ -4,6 +4,7 @@ const productController = require('../controllers/productController');
 const { auth, optionalAuth } = require('../middleware/auth');
 const { adminOnly, staffOnly } = require('../middleware/roleCheck');
 const { productValidation, idValidation, paginationValidation } = require('../middleware/validator');
+const { upload } = require('../middleware/upload');
 
 // Public routes (can view products)
 router.get('/', optionalAuth, paginationValidation, productController.getAllProducts);
@@ -16,8 +17,8 @@ router.get('/:id', optionalAuth, idValidation, productController.getProductById)
 router.get('/:id/stock-history', auth, staffOnly, idValidation, productController.getStockHistory);
 
 // Admin only routes
-router.post('/', auth, adminOnly, productValidation, productController.createProduct);
-router.put('/:id', auth, adminOnly, idValidation, productController.updateProduct);
+router.post('/', auth, adminOnly, upload.single('image'), productController.createProduct);
+router.put('/:id', auth, adminOnly, idValidation, upload.single('image'), productController.updateProduct);
 router.delete('/:id', auth, adminOnly, idValidation, productController.deleteProduct);
 
 module.exports = router;

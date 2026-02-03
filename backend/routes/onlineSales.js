@@ -14,6 +14,7 @@ router.delete('/cart/:productId', auth, customerOnly, onlineSalesController.remo
 // Customer routes - Checkout & Orders
 router.post('/checkout', auth, customerOnly, checkoutValidation, onlineSalesController.checkout);
 router.get('/my-orders', auth, customerOnly, paginationValidation, onlineSalesController.getMyOrders);
+router.get('/my-orders/:id', auth, customerOnly, idValidation, onlineSalesController.getMyOrderById);
 
 // Admin/Staff routes - View all orders
 router.get('/orders', auth, staffOnly, paginationValidation, onlineSalesController.getAllOrders);

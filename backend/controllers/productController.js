@@ -17,12 +17,26 @@ exports.getProductById = asyncHandler(async (req, res) => {
 });
 
 exports.createProduct = asyncHandler(async (req, res) => {
-  const product = await productService.createProduct(req.body);
+  const productData = req.body;
+  
+  // Add image URL if file was uploaded
+  if (req.file) {
+    productData.image_url = `/uploads/products/${req.file.filename}`;
+  }
+  
+  const product = await productService.createProduct(productData);
   res.status(201).json(successResponse(product, 'Product created successfully'));
 });
 
 exports.updateProduct = asyncHandler(async (req, res) => {
-  const product = await productService.updateProduct(req.params.id, req.body);
+  const productData = req.body;
+  
+  // Add image URL if new file was uploaded
+  if (req.file) {
+    productData.image_url = `/uploads/products/${req.file.filename}`;
+  }
+  
+  const product = await productService.updateProduct(req.params.id, productData);
   res.json(successResponse(product, 'Product updated successfully'));
 });
 

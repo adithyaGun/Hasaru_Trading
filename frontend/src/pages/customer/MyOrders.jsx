@@ -81,8 +81,8 @@ const MyOrders = () => {
 
   const handleViewDetails = async (order) => {
     try {
-      // Fetch full order details with items
-      const response = await api.get(`/sales/online/orders/${order.id}`);
+      // Fetch full order details with items - using customer-specific endpoint
+      const response = await api.get(`/sales/online/my-orders/${order.id}`);
       const fullOrder = response.data?.data || order;
       
       // Map the full order with display fields

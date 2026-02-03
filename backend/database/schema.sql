@@ -49,6 +49,7 @@ CREATE TABLE products (
     id INT PRIMARY KEY AUTO_INCREMENT,
     name VARCHAR(255) NOT NULL,
     description TEXT,
+    image_url VARCHAR(500),
     sku VARCHAR(100) UNIQUE NOT NULL,
     barcode VARCHAR(100) UNIQUE,
     category VARCHAR(100),

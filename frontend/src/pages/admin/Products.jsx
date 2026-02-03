@@ -17,7 +17,9 @@ import {
   Card,
   Statistic,
   Badge,
-  Tooltip
+  Tooltip,
+  Upload,
+  Image
 } from 'antd';
 import { 
   PlusOutlined, 
@@ -26,9 +28,11 @@ import {
   SearchOutlined,
   ReloadOutlined,
   ExportOutlined,
-  EyeOutlined
+  EyeOutlined,
+  UploadOutlined
 } from '@ant-design/icons';
 import api from '../../api/axios';
+import { getImageUrl } from '../../config/constants';
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -45,6 +49,9 @@ const AdminProducts = () => {
   const [batchesModalVisible, setBatchesModalVisible] = useState(false);
   const [selectedProductBatches, setSelectedProductBatches] = useState([]);
   const [batchesLoading, setBatchesLoading] = useState(false);
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [fileList, setFileList] = useState([]);
   const [stats, setStats] = useState({
     total: 0,
     active: 0,
@@ -88,6 +95,9 @@ const AdminProducts = () => {
   const handleAdd = () => {
     setEditingProduct(null);
     form.resetFields();
+    setImageFile(null);
+    setImagePreview(null);
+    setFileList([]);
     setModalVisible(true);
   };
 
@@ -98,6 +108,9 @@ const AdminProducts = () => {
       category: record.category || undefined,
       brand: record.brand || undefined
     });
+    setImageFile(null);
+    setImagePreview(record.image_url ? getImageUrl(record.image_url) : null);
+    setFileList([]);
     setModalVisible(true);
   };
 
@@ -132,20 +145,65 @@ const AdminProducts = () => {
 
   const handleSubmit = async (values) => {
     try {
+      const formData = new FormData();
+      
+      // Append all form values to FormData
+      Object.keys(values).forEach(key => {
+        if (values[key] !== undefined && values[key] !== null) {
+          formData.append(key, values[key]);
+        }
+      });
+
+      // Append image file if selected
+      if (imageFile) {
+        formData.append('image', imageFile);
+      }
+
       if (editingProduct) {
-        await api.put(`/products/${editingProduct.id}`, values);
+        await api.put(`/products/${editingProduct.id}`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
         message.success('Product updated successfully');
       } else {
-        await api.post('/products', values);
+        await api.post('/products', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
         message.success('Product created successfully');
       }
+      
+      // Reset form and state
       setModalVisible(false);
       form.resetFields();
-      fetchProducts();
+      setImageFile(null);
+      setImagePreview(null);
+      setEditingProduct(null);
+      setFileList([]);
+      
+      // Refresh products list to get updated data
+      await fetchProducts();
     } catch (error) {
       message.error(editingProduct ? 'Failed to update product' : 'Failed to create product');
       console.error('Error saving product:', error);
     }
+  };
+
+  const handleImageChange = (info) => {
+    const file = info.file.originFileObj || info.file;
+    setImageFile(file);
+    setFileList([info.file]);
+    
+    // Create preview
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setImagePreview(e.target.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    setFileList([]);
   };
 
   const getStockStatus = (stock, reorderLevel) => {
@@ -165,6 +223,28 @@ const AdminProducts = () => {
   });
 
   const columns = [
+    {
+      title: 'Image',
+      dataIndex: 'image_url',
+      key: 'image_url',
+      width: 80,
+      render: (image_url) => (
+        image_url ? (
+          <Image
+            width={50}
+            height={50}
+            src={getImageUrl(image_url)}
+            alt="Product"
+            style={{ objectFit: 'cover', borderRadius: '4px' }}
+            fallback="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mN8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg=="
+          />
+        ) : (
+          <div style={{ width: 50, height: 50, background: '#f0f0f0', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '4px' }}>
+            <span style={{ fontSize: '24px' }}>📦</span>
+          </div>
+        )
+      ),
+    },
     {
       title: 'SKU',
       dataIndex: 'sku',
@@ -384,6 +464,10 @@ const AdminProducts = () => {
         onCancel={() => {
           setModalVisible(false);
           form.resetFields();
+          setImageFile(null);
+          setImagePreview(null);
+          setEditingProduct(null);
+          setFileList([]);
         }}
         onOk={() => form.submit()}
         width={800}
@@ -451,6 +535,40 @@ const AdminProducts = () => {
             label="Description"
           >
             <TextArea rows={3} placeholder="Enter product description" />
+          </Form.Item>
+
+          <Form.Item
+            label="Product Image"
+            extra="Upload a product image (Max 5MB, JPG/PNG/GIF/WEBP)"
+          >
+            <Upload
+              listType="picture-card"
+              maxCount={1}
+              accept="image/*"
+              fileList={fileList}
+              beforeUpload={() => false}
+              onChange={handleImageChange}
+              onRemove={handleRemoveImage}
+              showUploadList={{
+                showPreviewIcon: false
+              }}
+            >
+              {!imagePreview && (
+                <div>
+                  <UploadOutlined />
+                  <div style={{ marginTop: 8 }}>Upload</div>
+                </div>
+              )}
+            </Upload>
+            {imagePreview && (
+              <div style={{ marginTop: 8 }}>
+                <Image
+                  width={200}
+                  src={imagePreview}
+                  alt="Preview"
+                />
+              </div>
+            )}
           </Form.Item>
 
           <Row gutter={16}>
