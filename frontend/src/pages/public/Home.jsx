@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
+import { getImageUrl } from '../../config/constants';
 
 const { Meta } = Card;
 
@@ -305,20 +306,32 @@ const Home = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {featuredProducts.map((product) => (
                 <Link key={product.id} to={`/product/${product.id}`}>
-                  <div className="group bg-white rounded-2xl overflow-hidden border border-gray-200 hover:border-red-300 hover:shadow-xl transition-all duration-300">
-                    <div className="h-56 bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center relative overflow-hidden">
+                  <div className="group bg-white rounded-2xl overflow-hidden border border-gray-200 hover:border-red-300 hover:shadow-xl transition-all duration-300 h-[420px] flex flex-col">
+                    <div className="h-56 flex-shrink-0 bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center relative overflow-hidden">
                       <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                      <Package className="w-20 h-20 text-gray-300 group-hover:text-red-400 transition-colors" />
+                      {product.image_url ? (
+                        <img 
+                          src={getImageUrl(product.image_url)} 
+                          alt={product.product_name}
+                          className="w-full h-full object-contain p-4 group-hover:scale-110 transition-transform duration-300"
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.style.display = 'none';
+                            e.target.parentElement.querySelector('.fallback-icon').style.display = 'block';
+                          }}
+                        />
+                      ) : null}
+                      <Package className={`fallback-icon w-20 h-20 text-gray-300 group-hover:text-red-400 transition-colors ${product.image_url ? 'hidden' : ''}`} />
                     </div>
-                    <div className="p-6">
+                    <div className="p-6 flex-1 flex flex-col">
                       <div className="text-xs font-semibold text-red-600 uppercase tracking-wide mb-2">
                         {product.category}
                       </div>
-                      <h3 className="font-bold text-lg mb-2 line-clamp-2 group-hover:text-red-600 transition-colors">
-                        {product.product_name}
+                      <h3 className="font-bold text-md mb-3 line-clamp-2 group-hover:text-red-600 transition-colors min-h-[56px]">
+                        {product.name}
                       </h3>
-                      <div className="flex items-center justify-between">
-                        <span className="text-2xl font-bold text-red-600">
+                      <div className="flex items-center justify-between mt-auto">
+                        <span className="text-xl font-bold text-red-600">
                           Rs. {parseFloat(product.selling_price).toFixed(2)}
                         </span>
                         {product.stock_quantity > 0 ? (

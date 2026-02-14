@@ -152,6 +152,8 @@ const Products = () => {
                   <Card
                     key={product.id}
                     hoverable
+                    className="h-[400px] flex flex-col"
+                    bodyStyle={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '16px' }}
                     cover={
                       <Link to={`/product/${product.id}`}>
                         <div className="h-48 bg-gray-200 flex items-center justify-center overflow-hidden">
@@ -159,7 +161,7 @@ const Products = () => {
                             <img
                               src={getImageUrl(product.image_url)}
                               alt={product.name}
-                              className="w-full h-full object-cover"
+                              className="w-full h-full object-contain p-2"
                               onError={(e) => {
                                 e.target.style.display = 'none';
                                 e.target.nextSibling.style.display = 'flex';
@@ -183,7 +185,7 @@ const Products = () => {
                       </Button>
                     ]}
                   >
-                    <Link to={`/product/${product.id}`}>
+                    <Link to={`/product/${product.id}`} className="flex-1 flex flex-col">
                       <Meta
                         title={(
                           <div 
@@ -195,8 +197,8 @@ const Products = () => {
                               WebkitLineClamp: 2,
                               WebkitBoxOrient: 'vertical',
                               wordBreak: 'break-word',
-                              fontSize: '16px',
-                              fontWeight: 500
+                              fontSize: '14px',
+                              fontWeight: 600
                             }}
                             title={product.name}
                           >

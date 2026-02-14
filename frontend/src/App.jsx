@@ -7,6 +7,9 @@ import Products from './pages/public/Products';
 import ProductDetail from './pages/public/ProductDetail';
 import Cart from './pages/public/Cart';
 import Checkout from './pages/public/Checkout';
+import About from './pages/public/About';
+import Contact from './pages/public/Contact';
+import FAQ from './pages/public/FAQ';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 
@@ -38,6 +41,7 @@ import Profile from './pages/customer/Profile';
 import ProtectedRoute from './components/ProtectedRoute';
 import RoleBasedRoute from './components/RoleBasedRoute';
 import NotFound from './pages/NotFound';
+import Chatbot from './components/Chatbot';
 
 function App() {
   const { isAuthenticated, user } = useSelector((state) => state.auth);
@@ -53,13 +57,17 @@ function App() {
   };
 
   return (
-    <Routes>
-      {/* Public routes */}
-      <Route path="/" element={<Home />} />
-      <Route path="/products" element={<Products />} />
-      <Route path="/product/:id" element={<ProductDetail />} />
-      <Route path="/cart" element={<Cart />} />
-      <Route path="/checkout" element={<Checkout />} />
+    <>
+      <Routes>
+        {/* Public routes */}
+        <Route path="/" element={<Home />} />
+        <Route path="/products" element={<Products />} />
+        <Route path="/product/:id" element={<ProductDetail />} />
+        <Route path="/cart" element={<Cart />} />
+        <Route path="/checkout" element={<Checkout />} />
+        <Route path="/about" element={<About />} />
+        <Route path="/contact" element={<Contact />} />
+        <Route path="/faq" element={<FAQ />} />
       
       {/* Auth routes - redirect if already logged in */}
       <Route 
@@ -102,9 +110,13 @@ function App() {
         <Route path="profile" element={<Profile />} />
       </Route>
 
-      {/* 404 */}
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+        {/* 404 */}
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+      
+      {/* Chatbot - Available on all pages */}
+      <Chatbot />
+    </>
   );
 }
 

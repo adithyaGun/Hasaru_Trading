@@ -39,7 +39,10 @@ const Footer = () => {
                 <Link to="/products" className="hover:text-red-400 transition">Products</Link>
               </li>
               <li>
-                <Link to="/cart" className="hover:text-red-400 transition">Cart</Link>
+                <Link to="/about" className="hover:text-red-400 transition">About Us</Link>
+              </li>
+              <li>
+                <Link to="/contact" className="hover:text-red-400 transition">Contact</Link>
               </li>
             </ul>
           </div>
@@ -55,7 +58,10 @@ const Footer = () => {
                 <Link to="/customer/profile" className="hover:text-red-400 transition">My Profile</Link>
               </li>
               <li>
-                <a href="#" className="hover:text-red-400 transition">Help & Support</a>
+                <Link to="/faq" className="hover:text-red-400 transition">FAQ</Link>
+              </li>
+              <li>
+                <Link to="/contact" className="hover:text-red-400 transition">Help & Support</Link>
               </li>
             </ul>
           </div>
