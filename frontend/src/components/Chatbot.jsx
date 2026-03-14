@@ -37,7 +37,7 @@ const Chatbot = () => {
     {
       keys: ['browse', 'products', 'catalog', 'shop', 'what do you sell', 'what you have', 'inventory'],
       responses: [
-        "We carry a wide range of auto parts! 🔧\n\n• **Tires** – All sizes for cars, SUVs & trucks\n• **Batteries** – Amaron, Exide & more brands\n• **Brake Pads & Discs** – Premium quality\n• **Engine Oil & Filters** – All types\n• **Wipers, Spark Plugs & more**\n\nVisit our [Products](/products) page to browse the full catalog!",
+        "We carry a wide range of auto parts! 🔧\n\n• Tires – All sizes for cars, SUVs & trucks\n• Batteries – Amaron, Exide & more brands\n• Brake Pads & Discs – Premium quality\n• Engine Oil & Filters – All types\n• Wipers, Spark Plugs & more\n\nVisit our [Products](/products) page to browse the full catalog!",
         "Great question! Here's what we stock:\n\n🛞 Tires (all vehicle types)\n🔋 Car Batteries\n🛑 Brake Components\n⚙️ Engine & Transmission Parts\n🔌 Electrical Parts\n\nHead to our Products page to see everything with prices!"
       ]
     },
@@ -83,28 +83,28 @@ const Chatbot = () => {
     {
       keys: ['order', 'my order', 'track', 'tracking', 'order status', 'where is my order', 'order number'],
       responses: [
-        "To track your order: 📦\n\n1. Log into your account\n2. Click your name in the top right\n3. Go to **My Orders**\n4. Find your order and check its status\n\nOr contact us at **+94 11 234 5678** with your order number!",
+        "To track your order: 📦\n\n1. Log into your account\n2. Click your name in the top right\n3. Go to My Orders\n4. Find your order and check its status\n\nOr contact us at +94 11 234 5678 with your order number!",
         "Here's how to check your order status: 📦\n\n• Log in → My Orders → find your order\n• Status updates: Processing → Shipped → Delivered\n\nYou'll also receive email notifications at each stage. Need help? Call +94 11 234 5678."
       ]
     },
     {
       keys: ['shipping', 'delivery', 'deliver', 'courier', 'how long', 'how many days', 'dispatch'],
       responses: [
-        "Shipping info: 🚚\n\n• **Standard Delivery**: 2–5 business days\n• **Express Delivery**: 1–2 business days\n• Available **island-wide** across Sri Lanka\n\nShipping cost is calculated at checkout based on your location and order weight.",
+        "Shipping info: 🚚\n\n• Standard Delivery: 2–5 business days\n• Express Delivery: 1–2 business days\n• Available **island-wide** across Sri Lanka\n\nShipping cost is calculated at checkout based on your location and order weight.",
         "We deliver across all of Sri Lanka! 🚚\n\n📍 Standard: 2–5 business days\n⚡ Express: 1–2 business days\n\nShipping fees are shown at checkout. Free shipping may apply on larger orders — check current promotions!"
       ]
     },
     {
       keys: ['payment', 'pay', 'cash', 'card', 'credit', 'debit', 'bank transfer', 'cod', 'cash on delivery'],
       responses: [
-        "We accept these payment methods: 💳\n\n• **Cash on Delivery (COD)** – pay when you receive\n• **Bank Transfer** – transfer to our account\n• **Credit/Debit Card** – Visa & Mastercard\n\nAll online payments are secure and encrypted.",
+        "We accept these payment methods: 💳\n\n• Cash on Delivery (COD) – pay when you receive\n• Bank Transfer – transfer to our account\n• Credit/Debit Card – Visa & Mastercard\n\nAll online payments are secure and encrypted.",
         "Payment options available: 💳\n\n✅ Cash on Delivery\n✅ Bank Transfer\n✅ Credit/Debit Card\n\nSelect your preferred method at checkout. COD is most popular for local orders!"
       ]
     },
     {
       keys: ['return', 'refund', 'exchange', 'wrong part', 'defective', 'damaged', 'faulty'],
       responses: [
-        "Our return policy: ↩️\n\n• **30-day returns** on unused, unopened items\n• **Defective items**: contact us immediately for free replacement\n• Refunds processed within **3–5 business days**\n\nContact support@hasarutrading.com to start a return.",
+        "Our return policy: ↩️\n\n• 30-day returns on unused, unopened items\n•  Defective items: contact us immediately for free replacement\n• Refunds processed within 3–5 business days\n\nContact support@hasarutrading.com to start a return.",
         "Returns & refunds: ↩️\n\n📦 Unused items: returnable within 30 days\n🔧 Defective/wrong item: we'll replace at no cost\n💰 Refund: 3–5 business days to original payment method\n\nCall +94 11 234 5678 or email support@hasarutrading.com to initiate."
       ]
     },
@@ -117,19 +117,19 @@ const Chatbot = () => {
     {
       keys: ['register', 'sign up', 'create account', 'new account', 'account'],
       responses: [
-        "Creating an account is easy! 👤\n\n1. Click **Sign Up** in the top right corner\n2. Fill in your name, email & password\n3. Verify your email\n4. Start shopping!\n\nBenefits: order tracking, saved addresses, member discounts.",
+        "Creating an account is easy! 👤\n\n1. Click Sign Up in the top right corner\n2. Fill in your name, email & password\n3. Verify your email\n4. Start shopping!\n\nBenefits: order tracking, saved addresses, member discounts.",
       ]
     },
     {
       keys: ['login', 'log in', 'sign in', 'forgot password', 'reset password', 'can\'t login', 'password'],
       responses: [
-        "To log in, click the **Login** button at the top right. 🔐\n\nForgot your password? Click **Forgot Password** on the login page and we'll send a reset link to your email.",
+        "To log in, click the Login button at the top right. 🔐\n\nForgot your password? Click Forgot Password on the login page and we'll send a reset link to your email.",
       ]
     },
     {
       keys: ['cart', 'add to cart', 'checkout', 'buy', 'purchase', 'how to order', 'how to buy'],
       responses: [
-        "Here's how to place an order: 🛒\n\n1. Browse Products and click **Add to Cart**\n2. Review your cart\n3. Click **Checkout**\n4. Fill in shipping details\n5. Select payment method\n6. Confirm your order!\n\nYou'll get an email confirmation instantly.",
+        "Here's how to place an order: 🛒\n\n1. Browse Products and click Add to Cart \n2. Review your cart\n3. Click Checkout \n4. Fill in shipping details\n5. Select payment method\n6. Confirm your order!\n\nYou'll get an email confirmation instantly.",
       ]
     },
     {
