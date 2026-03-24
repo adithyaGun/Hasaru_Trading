@@ -139,7 +139,9 @@ class OTCSalesService {
         );
       }
 
-      // Deduct stock immediately
+      await connection.commit();
+
+      // Deduct stock AFTER committing the sale (stockService manages its own connection)
       const stockUpdates = saleItems.map(item => ({
         product_id: item.product_id,
         quantity_change: -item.quantity
@@ -151,8 +153,6 @@ class OTCSalesService {
         saleId,
         salesStaffId
       );
-
-      await connection.commit();
 
       return await this.getSaleById(saleId);
     } catch (error) {

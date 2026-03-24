@@ -245,6 +245,19 @@ class OnlineSalesService {
 
       await connection.commit();
 
+      // Deduct stock AFTER committing the order (stockService manages its own connection)
+      const stockUpdates = cart.items.map(item => ({
+        product_id: item.product_id,
+        quantity_change: -parseInt(item.quantity)
+      }));
+
+      await stockService.updateStockBatch(
+        stockUpdates,
+        TRANSACTION_TYPES.ONLINE_SALE,
+        saleId,
+        customerId
+      );
+
       const order = await this.getOrderById(saleId);
 
       // Prepare email data with properly formatted fields
