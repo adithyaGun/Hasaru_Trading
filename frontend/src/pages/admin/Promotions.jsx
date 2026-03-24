@@ -53,7 +53,7 @@ const AdminPromotions = () => {
     setLoading(true);
     try {
       const response = await promotionsAPI.getAll();
-      const data = Array.isArray(response.data.data) ? response.data.data : [];
+      const data = Array.isArray(response.data.data?.promotions) ? response.data.data.promotions : [];
       setPromotions(data);
       
       // Calculate stats
@@ -65,7 +65,7 @@ const AdminPromotions = () => {
         
         if (now.isAfter(end)) acc.expired++;
         else if (now.isBefore(start)) acc.upcoming++;
-        else if (promo.status === 'active') acc.active++;
+        else if (promo.is_active) acc.active++;
         
         return acc;
       }, { total: 0, active: 0, expired: 0, upcoming: 0 });
@@ -89,6 +89,7 @@ const AdminPromotions = () => {
     setEditingPromotion(record);
     form.setFieldsValue({
       ...record,
+      status: record.is_active ? 'active' : 'inactive',
       date_range: [dayjs(record.start_date), dayjs(record.end_date)]
     });
     setModalVisible(true);
@@ -115,7 +116,7 @@ const AdminPromotions = () => {
         discount_value: values.discount_value,
         start_date: values.date_range[0].format('YYYY-MM-DD'),
         end_date: values.date_range[1].format('YYYY-MM-DD'),
-        status: values.status || 'active'
+        is_active: (values.status || 'active') === 'active'
       };
 
       if (editingPromotion) {
@@ -190,17 +191,17 @@ const AdminPromotions = () => {
           return <Tag color="gray">EXPIRED</Tag>;
         } else if (now.isBefore(start)) {
           return <Tag color="blue">UPCOMING</Tag>;
-        } else if (record.status === 'active') {
+        } else if (record.is_active) {
           return <Tag color="green">ACTIVE</Tag>;
         } else {
           return <Tag color="orange">INACTIVE</Tag>;
         }
       },
       filters: [
-        { text: 'Active', value: 'active' },
-        { text: 'Inactive', value: 'inactive' }
+        { text: 'Active', value: true },
+        { text: 'Inactive', value: false }
       ],
-      onFilter: (value, record) => record.status === value,
+      onFilter: (value, record) => record.is_active === value,
       width: '10%'
     },
     {
