@@ -75,7 +75,7 @@ const AdminUsers = () => {
     setLoading(true);
     try {
       await authAPI.changePassword({
-        currentPassword: values.currentPassword,
+        oldPassword: values.currentPassword,
         newPassword: values.newPassword
       });
       message.success('Password changed successfully');
